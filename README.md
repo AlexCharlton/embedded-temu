@@ -11,13 +11,12 @@ This crate is `no_std` compatible. It is suitable for embedded systems and OS ke
 ## Examples
 Output png files
 
-1. rterm
+**1. rterm**
 ```sh
 cargo run --example rterm
 ```
 
-2. replay
-
+**2. replay**
 ```sh
 cargo run --example replay -- examples/test-escapes.txt
 ```
