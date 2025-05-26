@@ -9,9 +9,9 @@ This crate is `no_std` compatible. It is suitable for embedded systems and OS ke
 ## Examples
 Output png files
 
-**1. rterm**
+**1. basic**
 ```sh
-cargo run --example rterm
+cargo run --example basic
 ```
 
 **2. replay**

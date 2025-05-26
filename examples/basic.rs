@@ -17,5 +17,5 @@ fn main() {
 
     let output_settings = OutputSettingsBuilder::new().build();
     let image = display.to_rgb_output_image(&output_settings);
-    image.save_png("rterm-output.png").unwrap();
+    image.save_png("basic-output.png").unwrap();
 }
