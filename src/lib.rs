@@ -19,8 +19,9 @@ mod ansi;
 mod cell;
 mod color;
 mod console;
+mod style;
 mod text_buffer;
 
-pub use cell::{draw_cell_default, Cell, Flags};
 pub use color::{Color, NamedColor};
-pub use console::{Console, DrawCellFn};
+pub use console::Console;
+pub use style::Style;

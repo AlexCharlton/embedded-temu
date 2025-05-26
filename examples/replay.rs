@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use embedded_graphics::{pixelcolor::Rgb888, prelude::*};
 use embedded_graphics_simulator::{OutputSettingsBuilder, SimulatorDisplay};
-use embedded_term::{draw_cell_default, Console};
+use embedded_term::{Console, Style};
 
 const DISPLAY_SIZE: Size = Size::new(800, 480);
 
@@ -20,12 +20,12 @@ fn main() {
     let decoded = input.replace("\\x1b", "\x1b");
     println!("Read {} bytes from {:?}", decoded.len(), fname);
 
-    let mut console = Console::new(80, 24);
+    let mut console = Console::new(80, 24, Style::default());
     let time = Instant::now();
     console.write_str(&decoded).unwrap();
     println!("Render time: {:?}", time.elapsed());
 
-    console.draw(&mut display, draw_cell_default).unwrap();
+    console.draw(&mut display).unwrap();
     let output_settings = OutputSettingsBuilder::new().build();
     let image = display.to_rgb_output_image(&output_settings);
     image.save_png("replay-output.png").unwrap();

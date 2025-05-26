@@ -1,6 +1,7 @@
 use crate::ansi::{Attr, ClearMode, Handler, LineClearMode, Mode, Performer};
 use crate::cell::{Cell, Flags};
 use crate::text_buffer::TextBuffer;
+use crate::Style;
 
 use alloc::collections::VecDeque;
 use core::cmp::min;
@@ -14,18 +15,14 @@ use vte::Parser;
 ///
 /// Write input strings with control sequences, draw to a [`DrawTarget`].
 ///
-/// Values that are written are encoded as a 2D array of [`Cell`]s, which are then used for drawing.
-pub struct Console {
-    /// ANSI escape sequence parser
+/// Values that are written are encoded as a 2D array of cells, which are then used for drawing with the provided [`Style`].
+pub struct Console<C> {
+    // ANSI escape sequence parser
     parser: Parser,
-    /// Inner state
+    // Inner state
     inner: ConsoleInner,
+    cell_style: Style<C>,
 }
-
-/// A function that draws a cell to a display.
-///
-/// The function takes a [`&Cell`][Cell], the row and column of the cell, and must draw the cell to the target. See [`draw_cell_default`][crate::draw_cell_default] for a default implementation.
-pub type DrawCellFn<D> = fn(&Cell, usize, usize, &mut D) -> Result<(), <D as DrawTarget>::Error>;
 
 #[derive(Debug, Default, Clone, Copy)]
 struct Cursor {
@@ -48,11 +45,12 @@ struct ConsoleInner {
     report: VecDeque<u8>,
 }
 
-impl Console {
-    /// Create a new console with a given width and height in characters
-    pub fn new(width: usize, height: usize) -> Self {
+impl<C> Console<C> {
+    /// Create a new console with a given width and height in characters, and a [`Style`]
+    pub fn new(width: usize, height: usize, cell_style: Style<C>) -> Self {
         Console {
             parser: Parser::new(),
+            cell_style,
             inner: ConsoleInner {
                 cursor: Cursor::default(),
                 saved_cursor: Cursor::default(),
@@ -84,24 +82,19 @@ impl Console {
     pub fn columns(&self) -> usize {
         self.inner.buf.width()
     }
-}
 
-impl Console {
     /// Draw the console to an embedded-graphics [`DrawTarget`]
-    ///
-    /// A custom [`DrawCellFn`] function can be provided to draw the cells of the console onto the target.
-    pub fn draw<D, C: PixelColor>(
+    pub fn draw<D, P: PixelColor + From<C>>(
         &mut self,
         display: &mut D,
-        draw_cell: DrawCellFn<D>,
     ) -> Result<(), <D as DrawTarget>::Error>
     where
-        D: DrawTarget<Color = C>,
+        D: DrawTarget<Color = P>,
     {
         for (row, row_cells) in self.inner.buf.buf.iter_mut().enumerate() {
             for (col, cell) in row_cells.iter_mut().enumerate() {
                 if cell.dirty {
-                    draw_cell(cell, row, col, display)?;
+                    crate::style::draw_cell(cell, row, col, display, &self.cell_style)?;
                     cell.dirty = false;
                 }
             }
@@ -111,7 +104,7 @@ impl Console {
     }
 }
 
-impl fmt::Write for Console {
+impl<C> fmt::Write for Console<C> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for byte in s.bytes() {
             self.write_byte(byte);
