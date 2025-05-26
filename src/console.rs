@@ -1,6 +1,7 @@
 use crate::ansi::{Attr, ClearMode, Handler, LineClearMode, Mode, Performer};
 use crate::cell::{Cell, Flags};
 use crate::text_buffer::TextBuffer;
+
 use alloc::collections::VecDeque;
 use core::cmp::min;
 use core::fmt;
@@ -20,6 +21,11 @@ pub struct Console {
     /// Inner state
     inner: ConsoleInner,
 }
+
+/// A function that draws a cell to a display.
+///
+/// The function takes a [`&Cell`][Cell], the row and column of the cell, and must draw the cell to the target. See [`draw_cell_default`][crate::draw_cell_default] for a default implementation.
+pub type DrawCellFn<D> = fn(&Cell, usize, usize, &mut D) -> Result<(), <D as DrawTarget>::Error>;
 
 #[derive(Debug, Default, Clone, Copy)]
 struct Cursor {
@@ -83,12 +89,11 @@ impl Console {
 impl Console {
     /// Draw the console to an embedded-graphics [`DrawTarget`]
     ///
-    /// A custom `draw_cell` function can be provided to draw the cells of the console onto the target.
-    /// The function must take a `&Cell`, the row and column of the cell, and draw the cell to the target. See [`crate::draw_cell_default`] for a default implementation.
+    /// A custom [`DrawCellFn`] function can be provided to draw the cells of the console onto the target.
     pub fn draw<D, C: PixelColor>(
         &mut self,
         display: &mut D,
-        draw_cell: fn(&Cell, usize, usize, &mut D) -> Result<(), <D as DrawTarget>::Error>,
+        draw_cell: DrawCellFn<D>,
     ) -> Result<(), <D as DrawTarget>::Error>
     where
         D: DrawTarget<Color = C>,

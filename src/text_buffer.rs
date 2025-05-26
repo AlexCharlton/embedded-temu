@@ -2,7 +2,6 @@ use crate::cell::Cell;
 use alloc::vec::Vec;
 
 /// A 2D array of `Cell` to render on screen
-
 pub struct TextBuffer {
     pub buf: Vec<Vec<Cell>>,
     row_offset: usize,

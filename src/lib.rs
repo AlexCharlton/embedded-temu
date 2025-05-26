@@ -23,4 +23,4 @@ mod text_buffer;
 
 pub use cell::{draw_cell_default, Cell, Flags};
 pub use color::{Color, NamedColor};
-pub use console::Console;
+pub use console::{Console, DrawCellFn};
