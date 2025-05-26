@@ -4,21 +4,16 @@ use crate::text_buffer::TextBuffer;
 use alloc::collections::VecDeque;
 use core::cmp::min;
 use core::fmt;
-use embedded_graphics::mono_font::{
-    iso_8859_1::{FONT_9X18 as FONT, FONT_9X18_BOLD as FONT_BOLD},
-    MonoTextStyleBuilder,
-};
+
 use embedded_graphics::prelude::*;
-use embedded_graphics::{
-    pixelcolor::Rgb888,
-    text::{Baseline, Text, TextStyle},
-};
 
 use vte::Parser;
 
-/// Console
+/// The primary interface to the terminal emulator.
 ///
-/// Input string with control sequence, output to a [`TextBuffer`].
+/// Write input strings with control sequences, draw to a [`DrawTarget`].
+///
+/// Values that are written are encoded as a 2D array of [`Cell`]s, which are then used for drawing.
 pub struct Console {
     /// ANSI escape sequence parser
     parser: Parser,
@@ -86,11 +81,14 @@ impl Console {
 }
 
 impl Console {
-    /// Draw the console to a display
-    // TODO: Pass font in
-    pub fn draw<D, C: From<Rgb888> + PixelColor>(
+    /// Draw the console to an embedded-graphics [`DrawTarget`]
+    ///
+    /// A custom `draw_cell` function can be provided to draw the cells of the console onto the target.
+    /// The function must take a `&Cell`, the row and column of the cell, and draw the cell to the target. See [`crate::draw_cell_default`] for a default implementation.
+    pub fn draw<D, C: PixelColor>(
         &mut self,
         display: &mut D,
+        draw_cell: fn(&Cell, usize, usize, &mut D) -> Result<(), <D as DrawTarget>::Error>,
     ) -> Result<(), <D as DrawTarget>::Error>
     where
         D: DrawTarget<Color = C>,
@@ -98,55 +96,12 @@ impl Console {
         for (row, row_cells) in self.inner.buf.buf.iter_mut().enumerate() {
             for (col, cell) in row_cells.iter_mut().enumerate() {
                 if cell.dirty {
-                    Self::draw_cell(cell, row, col, display)?;
+                    draw_cell(cell, row, col, display)?;
                     cell.dirty = false;
                 }
             }
         }
 
-        Ok(())
-    }
-
-    fn draw_cell<D, C: From<Rgb888> + PixelColor>(
-        cell: &Cell,
-        row: usize,
-        col: usize,
-        display: &mut D,
-    ) -> Result<(), <D as DrawTarget>::Error>
-    where
-        D: DrawTarget<Color = C>,
-    {
-        let mut utf8_buf = [0u8; 8];
-        let s = cell.c.encode_utf8(&mut utf8_buf);
-        let (fg, bg) = if cell.flags.contains(Flags::INVERSE) {
-            (cell.bg, cell.fg)
-        } else {
-            (cell.fg, cell.bg)
-        };
-        let mut style = MonoTextStyleBuilder::new()
-            .text_color(C::from(fg.to_rgb()))
-            .background_color(C::from(bg.to_rgb()));
-        if cell.flags.contains(Flags::BOLD) {
-            style = style.font(&FONT_BOLD);
-        } else {
-            style = style.font(&FONT);
-        }
-        if cell.flags.contains(Flags::STRIKEOUT) {
-            style = style.strikethrough();
-        }
-        if cell.flags.contains(Flags::UNDERLINE) {
-            style = style.underline();
-        }
-        let text = Text::with_text_style(
-            s,
-            Point::new(
-                col as i32 * FONT.character_size.width as i32,
-                row as i32 * FONT.character_size.height as i32,
-            ),
-            style.build(),
-            TextStyle::with_baseline(Baseline::Top),
-        );
-        text.draw(display)?;
         Ok(())
     }
 }
@@ -239,7 +194,7 @@ impl Handler for ConsoleInner {
     #[inline]
     fn put_tab(&mut self, count: u16) {
         let mut count = count;
-        let bg = self.temp.bg();
+        let bg = self.temp.just_bg();
         while self.cursor.col < self.buf.width() && count > 0 {
             count -= 1;
             loop {
@@ -295,7 +250,7 @@ impl Handler for ConsoleInner {
         let end = min(start + count, self.buf.width());
 
         // Cleared cells have current background color set.
-        let bg = self.temp.bg();
+        let bg = self.temp.just_bg();
         for i in start..end {
             self.buf.write(self.cursor.row, i, bg);
         }
@@ -309,7 +264,7 @@ impl Handler for ConsoleInner {
         let start = self.cursor.col;
         let end = start + count;
 
-        let bg = self.temp.bg();
+        let bg = self.temp.just_bg();
         for i in end..columns {
             self.buf.write(row, i - count, self.buf.read(row, i));
             self.buf.write(row, i, bg);
@@ -331,7 +286,7 @@ impl Handler for ConsoleInner {
     #[inline]
     fn clear_line(&mut self, mode: LineClearMode) {
         trace!("Clearing line: {:?}", mode);
-        let bg = self.temp.bg();
+        let bg = self.temp.just_bg();
         match mode {
             LineClearMode::Right => {
                 for i in self.cursor.col..self.buf.width() {
@@ -354,7 +309,7 @@ impl Handler for ConsoleInner {
     #[inline]
     fn clear_screen(&mut self, mode: ClearMode) {
         trace!("Clearing screen: {:?}", mode);
-        let bg = self.temp.bg();
+        let bg = self.temp.just_bg();
         let row = self.cursor.row;
         let col = self.cursor.col;
         match mode {

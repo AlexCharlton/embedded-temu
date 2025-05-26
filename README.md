@@ -4,31 +4,23 @@
 [![Docs](https://docs.rs/embedded-term/badge.svg)](https://docs.rs/embedded-term)
 [![Actions Status](https://github.com/rcore-os/embedded-term/workflows/CI/badge.svg)](https://github.com/rcore-os/embedded-term/actions)
 
-A terminal emulator on [embedded-graphics][].
+A terminal emulator for [embedded-graphics](https://github.com/embedded-graphics/embedded-graphics).
 
 This crate is `no_std` compatible. It is suitable for embedded systems and OS kernels.
 
-[embedded-graphics]: https://github.com/embedded-graphics/embedded-graphics
-
-## Run example
+## Examples
+Output png files
 
 1. rterm
-
-Read and show stdin:
-
-```
-htop | cargo run --example rterm
+```sh
+cargo run --example rterm
 ```
 
-2. pty
+2. replay
 
-Spawn a process and show:
-
+```sh
+cargo run --example replay -- examples/test-escapes.txt
 ```
-cargo run --example pty htop
-```
-
-TODO: documents and tests
 
 ## Optional features
 

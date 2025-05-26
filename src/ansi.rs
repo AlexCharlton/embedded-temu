@@ -588,7 +588,7 @@ where
 /// Parse a color specifier from list of attributes.
 fn parse_sgr_color(params: &mut dyn Iterator<Item = u16>) -> Option<Color> {
     match params.next() {
-        Some(2) => Some(Color::Spec(Rgb888::new(
+        Some(2) => Some(Color::RGB(Rgb888::new(
             u8::try_from(params.next()?).ok()?,
             u8::try_from(params.next()?).ok()?,
             u8::try_from(params.next()?).ok()?,

@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use embedded_graphics::{pixelcolor::Rgb888, prelude::*};
 use embedded_graphics_simulator::{OutputSettingsBuilder, SimulatorDisplay};
-use embedded_term::Console;
+use embedded_term::{draw_cell_default, Console};
 
 const DISPLAY_SIZE: Size = Size::new(800, 480);
 
@@ -25,7 +25,7 @@ fn main() {
     console.write_str(&decoded).unwrap();
     println!("Render time: {:?}", time.elapsed());
 
-    console.draw(&mut display).unwrap();
+    console.draw(&mut display, draw_cell_default).unwrap();
     let output_settings = OutputSettingsBuilder::new().build();
     let image = display.to_rgb_output_image(&output_settings);
     image.save_png("replay-output.png").unwrap();
