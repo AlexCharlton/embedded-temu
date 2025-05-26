@@ -25,6 +25,7 @@ pub struct Cell {
     pub fg: Color,
     pub bg: Color,
     pub flags: Flags,
+    pub dirty: bool,
 }
 
 impl Cell {
@@ -44,6 +45,7 @@ impl Default for Cell {
             bg: Color::Named(NamedColor::Black),
             fg: Color::Named(NamedColor::BrightWhite),
             flags: Flags::empty(),
+            dirty: true,
         }
     }
 }

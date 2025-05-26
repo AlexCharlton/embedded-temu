@@ -1,0 +1,2 @@
+\x1b[12;36H\x1b[31mH\x1b[33me\x1b[32ml\x1b[36ml\x1b[34mo\x1b[35m \x1b[31mw\x1b[33mo\x1b[32mr\x1b[36ml\x1b[34md\x1b[35m!
+This line won't be seen\x1b[2K

@@ -1,24 +1,29 @@
 use crate::ansi::{Attr, ClearMode, Handler, LineClearMode, Mode, Performer};
 use crate::cell::{Cell, Flags};
-use crate::color::Rgb888;
-use crate::graphic::TextOnGraphic;
 use crate::text_buffer::TextBuffer;
-use crate::text_buffer_cache::TextBufferCache;
 use alloc::collections::VecDeque;
 use core::cmp::min;
 use core::fmt;
+use embedded_graphics::mono_font::{
+    iso_8859_1::{FONT_9X18 as FONT, FONT_9X18_BOLD as FONT_BOLD},
+    MonoTextStyleBuilder,
+};
+use embedded_graphics::prelude::*;
+use embedded_graphics::{
+    pixelcolor::Rgb888,
+    text::{Baseline, Text, TextStyle},
+};
 
-use embedded_graphics::prelude::{DrawTarget, OriginDimensions};
 use vte::Parser;
 
 /// Console
 ///
 /// Input string with control sequence, output to a [`TextBuffer`].
-pub struct Console<T: TextBuffer> {
+pub struct Console {
     /// ANSI escape sequence parser
     parser: Parser,
     /// Inner state
-    inner: ConsoleInner<T>,
+    inner: ConsoleInner,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -27,7 +32,7 @@ struct Cursor {
     col: usize,
 }
 
-struct ConsoleInner<T: TextBuffer> {
+struct ConsoleInner {
     /// cursor
     cursor: Cursor,
     /// Saved cursor
@@ -35,41 +40,23 @@ struct ConsoleInner<T: TextBuffer> {
     /// current attribute template
     temp: Cell,
     /// character buffer
-    buf: T,
+    buf: TextBuffer,
     /// auto wrap
     auto_wrap: bool,
     /// Reported data for CSI Device Status Report
     report: VecDeque<u8>,
 }
 
-/// Console on top of a frame buffer
-pub type ConsoleOnGraphic<D> = Console<TextBufferCache<TextOnGraphic<D>>>;
-
-impl<D: DrawTarget<Color = Rgb888> + OriginDimensions> Console<TextBufferCache<TextOnGraphic<D>>> {
-    /// Create a console on top of a frame buffer
-    pub fn on_frame_buffer(buffer: D) -> Self {
-        let size = buffer.size();
-        Self::on_cached_text_buffer(TextOnGraphic::new(buffer, size.width, size.height))
-    }
-}
-
-impl<T: TextBuffer> Console<TextBufferCache<T>> {
-    /// Create a console on top of a [`TextBuffer`] with a cache layer
-    pub fn on_cached_text_buffer(buffer: T) -> Self {
-        Self::on_text_buffer(TextBufferCache::new(buffer))
-    }
-}
-
-impl<T: TextBuffer> Console<T> {
-    /// Create a console on top of a [`TextBuffer`]
-    pub fn on_text_buffer(buffer: T) -> Self {
+impl Console {
+    /// Create a new console with a given width and height in characters
+    pub fn new(width: usize, height: usize) -> Self {
         Console {
             parser: Parser::new(),
             inner: ConsoleInner {
                 cursor: Cursor::default(),
                 saved_cursor: Cursor::default(),
                 temp: Cell::default(),
-                buf: buffer,
+                buf: TextBuffer::new(width, height),
                 auto_wrap: true,
                 report: VecDeque::new(),
             },
@@ -98,7 +85,73 @@ impl<T: TextBuffer> Console<T> {
     }
 }
 
-impl<T: TextBuffer> fmt::Write for Console<T> {
+impl Console {
+    /// Draw the console to a display
+    // TODO: Pass font in
+    pub fn draw<D, C: From<Rgb888> + PixelColor>(
+        &mut self,
+        display: &mut D,
+    ) -> Result<(), <D as DrawTarget>::Error>
+    where
+        D: DrawTarget<Color = C>,
+    {
+        for (row, row_cells) in self.inner.buf.buf.iter_mut().enumerate() {
+            for (col, cell) in row_cells.iter_mut().enumerate() {
+                if cell.dirty {
+                    Self::draw_cell(cell, row, col, display)?;
+                    cell.dirty = false;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn draw_cell<D, C: From<Rgb888> + PixelColor>(
+        cell: &Cell,
+        row: usize,
+        col: usize,
+        display: &mut D,
+    ) -> Result<(), <D as DrawTarget>::Error>
+    where
+        D: DrawTarget<Color = C>,
+    {
+        let mut utf8_buf = [0u8; 8];
+        let s = cell.c.encode_utf8(&mut utf8_buf);
+        let (fg, bg) = if cell.flags.contains(Flags::INVERSE) {
+            (cell.bg, cell.fg)
+        } else {
+            (cell.fg, cell.bg)
+        };
+        let mut style = MonoTextStyleBuilder::new()
+            .text_color(C::from(fg.to_rgb()))
+            .background_color(C::from(bg.to_rgb()));
+        if cell.flags.contains(Flags::BOLD) {
+            style = style.font(&FONT_BOLD);
+        } else {
+            style = style.font(&FONT);
+        }
+        if cell.flags.contains(Flags::STRIKEOUT) {
+            style = style.strikethrough();
+        }
+        if cell.flags.contains(Flags::UNDERLINE) {
+            style = style.underline();
+        }
+        let text = Text::with_text_style(
+            s,
+            Point::new(
+                col as i32 * FONT.character_size.width as i32,
+                row as i32 * FONT.character_size.height as i32,
+            ),
+            style.build(),
+            TextStyle::with_baseline(Baseline::Top),
+        );
+        text.draw(display)?;
+        Ok(())
+    }
+}
+
+impl fmt::Write for Console {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for byte in s.bytes() {
             self.write_byte(byte);
@@ -107,7 +160,7 @@ impl<T: TextBuffer> fmt::Write for Console<T> {
     }
 }
 
-impl<T: TextBuffer> Handler for ConsoleInner<T> {
+impl Handler for ConsoleInner {
     #[inline]
     fn input(&mut self, c: char) {
         trace!("  [input]: {:?} @ {:?}", c, self.cursor);
