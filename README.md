@@ -1,8 +1,6 @@
 # Embedded Terminal
 
-[![Crate](https://img.shields.io/crates/v/embedded-term.svg)](https://crates.io/crates/embedded-term)
-[![Docs](https://docs.rs/embedded-term/badge.svg)](https://docs.rs/embedded-term)
-[![Actions Status](https://github.com/rcore-os/embedded-term/workflows/CI/badge.svg)](https://github.com/rcore-os/embedded-term/actions)
+[![Actions Status](https://github.com/AlexCharlton/embedded-term/workflows/CI/badge.svg)](https://github.com/AlexCharlton/embedded-term/actions)
 
 A terminal emulator for [embedded-graphics](https://github.com/embedded-graphics/embedded-graphics).
 
