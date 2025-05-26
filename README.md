@@ -1,13 +1,13 @@
-# Embedded Terminal
+# Embedded Terminal Emulator
 
-[![Actions Status](https://github.com/AlexCharlton/embedded-term/workflows/CI/badge.svg)](https://github.com/AlexCharlton/embedded-term/actions)
+[![Actions Status](https://github.com/AlexCharlton/embedded-temu/workflows/CI/badge.svg)](https://github.com/AlexCharlton/embedded-temu/actions)
 
-A terminal emulator for [embedded-graphics](https://github.com/embedded-graphics/embedded-graphics).
+A terminal emulator for [embedded-graphics](https://github.com/embedded-graphics/embedded-graphics). Forked from [embedded-term](https://github.com/rcore-os/embedded-term) to provide a more flexible, stylable API. [Ratatui](https://ratatui.rs/) backend support is provided.
 
-This crate is `no_std` compatible. It is suitable for embedded systems and OS kernels.
+This crate is `no_std` compatible.
 
 ## Examples
-Output png files
+Outputs png files.
 
 **1. basic**
 ```sh
@@ -20,22 +20,5 @@ cargo run --example replay -- examples/test-escapes.txt
 ```
 
 ## Optional features
-
-- `log`: Enable built-in logging.
-
-## License
-
-Licensed under either of
-
- * Apache License, Version 2.0
-   ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
- * MIT license
-   ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
-
-at your option.
-
-## Contribution
-
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
+- `log`: Enable built-in logging
+- `ratatui-backend`: Allow this to be used as a Ratatui backend

@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use embedded_graphics::{pixelcolor::Rgb888, prelude::*};
 use embedded_graphics_simulator::{OutputSettingsBuilder, SimulatorDisplay};
-use embedded_term::{Console, Style};
+use embedded_temu::{Console, Style};
 
 const DISPLAY_SIZE: Size = Size::new(800, 480);
 

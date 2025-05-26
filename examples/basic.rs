@@ -1,6 +1,6 @@
 use embedded_graphics::{pixelcolor::Rgb666, prelude::*};
 use embedded_graphics_simulator::{OutputSettingsBuilder, SimulatorDisplay};
-use embedded_term::{Console, Style};
+use embedded_temu::{Console, Style};
 
 use std::fmt::Write;
 
