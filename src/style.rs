@@ -2,8 +2,8 @@ use crate::cell::{Cell, Flags};
 use crate::color::{Color, NamedColor};
 
 use embedded_graphics::mono_font::{
-    iso_8859_1::{FONT_9X18 as FONT, FONT_9X18_BOLD as FONT_BOLD},
     MonoFont, MonoTextStyleBuilder,
+    iso_8859_1::{FONT_9X18 as FONT, FONT_9X18_BOLD as FONT_BOLD},
 };
 use embedded_graphics::prelude::*;
 use embedded_graphics::{

@@ -1,7 +1,7 @@
+use crate::Style;
 use crate::ansi::{Attr, ClearMode, Handler, LineClearMode, Mode, Performer};
 use crate::cell::{Cell, Flags};
 use crate::text_buffer::TextBuffer;
-use crate::Style;
 
 use alloc::collections::VecDeque;
 use core::cmp::min;
@@ -83,6 +83,20 @@ impl<C> Console<C> {
         self.inner.buf.width()
     }
 
+    /// Get the current cursor position
+    pub fn get_cursor_position(&self) -> (usize, usize) {
+        (self.inner.cursor.row, self.inner.cursor.col)
+    }
+
+    pub(crate) fn set_cursor_position(&mut self, row: usize, col: usize) {
+        self.inner.goto(row, col);
+        self.inner.temp = self.inner.buf.read(row, col);
+    }
+
+    pub(crate) fn set_cell(&mut self, row: usize, col: usize, cell: Cell) {
+        self.inner.buf.write(row, col, cell);
+    }
+
     /// Draw the console to an embedded-graphics [`DrawTarget`]
     pub fn draw<D, P: PixelColor + From<C>>(
         &mut self,
@@ -102,6 +116,16 @@ impl<C> Console<C> {
 
         Ok(())
     }
+
+    /// Clear the screen
+    pub fn clear_screen(&mut self, mode: ClearMode) {
+        self.inner.clear_screen(mode);
+    }
+
+    /// Clear the line
+    pub fn clear_line(&mut self, mode: LineClearMode) {
+        self.inner.clear_line(mode);
+    }
 }
 
 impl<C> fmt::Write for Console<C> {
@@ -114,7 +138,6 @@ impl<C> fmt::Write for Console<C> {
 }
 
 impl Handler for ConsoleInner {
-    #[inline]
     fn input(&mut self, c: char) {
         trace!("  [input]: {:?} @ {:?}", c, self.cursor);
         if self.cursor.col >= self.buf.width() {
@@ -131,32 +154,27 @@ impl Handler for ConsoleInner {
         self.cursor.col += 1;
     }
 
-    #[inline]
     fn goto(&mut self, row: usize, col: usize) {
         trace!("Going to: line={}, col={}", row, col);
         self.cursor.row = min(row, self.buf.height());
         self.cursor.col = min(col, self.buf.width());
     }
 
-    #[inline]
     fn goto_line(&mut self, row: usize) {
         trace!("Going to line: {}", row);
         self.goto(row, self.cursor.col)
     }
 
-    #[inline]
     fn goto_col(&mut self, col: usize) {
         trace!("Going to column: {}", col);
         self.goto(self.cursor.row, col)
     }
 
-    #[inline]
     fn move_up(&mut self, rows: usize) {
         trace!("Moving up: {}", rows);
         self.goto(self.cursor.row.saturating_sub(rows), self.cursor.col)
     }
 
-    #[inline]
     fn move_down(&mut self, rows: usize) {
         trace!("Moving down: {}", rows);
         self.goto(
@@ -165,31 +183,26 @@ impl Handler for ConsoleInner {
         )
     }
 
-    #[inline]
     fn move_forward(&mut self, cols: usize) {
         trace!("Moving forward: {}", cols);
         self.cursor.col = min(self.cursor.col + cols, self.buf.width() - 1);
     }
 
-    #[inline]
     fn move_backward(&mut self, cols: usize) {
         trace!("Moving backward: {}", cols);
         self.cursor.col = self.cursor.col.saturating_sub(cols);
     }
 
-    #[inline]
     fn move_down_and_cr(&mut self, rows: usize) {
         trace!("Moving down and cr: {}", rows);
         self.goto(min(self.cursor.row + rows, self.buf.height() - 1) as _, 0)
     }
 
-    #[inline]
     fn move_up_and_cr(&mut self, rows: usize) {
         trace!("Moving up and cr: {}", rows);
         self.goto(self.cursor.row.saturating_sub(rows), 0)
     }
 
-    #[inline]
     fn put_tab(&mut self, count: u16) {
         let mut count = count;
         let bg = self.temp.just_bg();
@@ -205,7 +218,6 @@ impl Handler for ConsoleInner {
         }
     }
 
-    #[inline]
     fn backspace(&mut self) {
         trace!("Backspace");
         if self.cursor.col > 0 {
@@ -213,13 +225,11 @@ impl Handler for ConsoleInner {
         }
     }
 
-    #[inline]
     fn carriage_return(&mut self) {
         trace!("Carriage return");
         self.cursor.col = 0;
     }
 
-    #[inline]
     fn linefeed(&mut self) {
         trace!("Linefeed");
         self.cursor.col = 0;
@@ -230,17 +240,14 @@ impl Handler for ConsoleInner {
         }
     }
 
-    #[inline]
     fn scroll_up(&mut self, rows: usize) {
         debug!("[Unhandled CSI] scroll_up {:?}", rows);
     }
 
-    #[inline]
     fn scroll_down(&mut self, rows: usize) {
         debug!("[Unhandled CSI] scroll_down {:?}", rows);
     }
 
-    #[inline]
     fn erase_chars(&mut self, count: usize) {
         trace!("Erasing chars: count={}, col={}", count, self.cursor.col);
 
@@ -253,7 +260,6 @@ impl Handler for ConsoleInner {
             self.buf.write(self.cursor.row, i, bg);
         }
     }
-    #[inline]
     fn delete_chars(&mut self, count: usize) {
         let columns = self.buf.width();
         let count = min(count, columns - self.cursor.col - 1);
@@ -281,7 +287,6 @@ impl Handler for ConsoleInner {
         self.cursor = self.saved_cursor;
     }
 
-    #[inline]
     fn clear_line(&mut self, mode: LineClearMode) {
         trace!("Clearing line: {:?}", mode);
         let bg = self.temp.just_bg();
@@ -304,7 +309,6 @@ impl Handler for ConsoleInner {
         }
     }
 
-    #[inline]
     fn clear_screen(&mut self, mode: ClearMode) {
         trace!("Clearing screen: {:?}", mode);
         let bg = self.temp.just_bg();
@@ -339,7 +343,6 @@ impl Handler for ConsoleInner {
         }
     }
 
-    #[inline]
     fn terminal_attribute(&mut self, attr: Attr) {
         trace!("Setting attribute: {:?}", attr);
         match attr {
@@ -366,7 +369,6 @@ impl Handler for ConsoleInner {
         }
     }
 
-    #[inline]
     fn set_mode(&mut self, mode: Mode) {
         if mode == Mode::LineWrap {
             self.auto_wrap = true;
@@ -375,7 +377,6 @@ impl Handler for ConsoleInner {
         }
     }
 
-    #[inline]
     fn unset_mode(&mut self, mode: Mode) {
         if mode == Mode::LineWrap {
             self.auto_wrap = false;
@@ -384,7 +385,6 @@ impl Handler for ConsoleInner {
         }
     }
 
-    #[inline]
     fn set_scrolling_region(&mut self, top: usize, bottom: Option<usize>) {
         let bottom = bottom.unwrap_or_else(|| self.buf.height());
         debug!(
@@ -393,7 +393,6 @@ impl Handler for ConsoleInner {
         );
     }
 
-    #[inline]
     fn device_status(&mut self, arg: usize) {
         trace!("Reporting device status: {}", arg);
         match arg {

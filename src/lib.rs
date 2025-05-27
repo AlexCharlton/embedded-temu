@@ -15,6 +15,11 @@ extern crate log;
 #[macro_use]
 mod log;
 
+#[cfg(feature = "ratatui-backend")]
+mod ratatui_backend;
+#[cfg(feature = "ratatui-backend")]
+pub use ratatui_backend::*;
+
 mod ansi;
 mod cell;
 mod color;

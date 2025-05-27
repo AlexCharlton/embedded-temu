@@ -15,6 +15,7 @@ vte = "0.10"
 log = { version = "0.4", default-features = false, optional = true }
 bitflags = "1.3"
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
+ratatui = { git = "https://github.com/j-g00da/ratatui.git", branch = "no_std/minimal", default-features = false, optional = true }
 
 [dev-dependencies]
 embedded-graphics-simulator = { version = "0.7", default-features = false }
@@ -22,3 +23,9 @@ env_logger = "0.9"
 
 [features]
 default = []
+
+ratatui-backend = ["ratatui"]
+
+[[example]]
+name = "ratatui"
+required-features = ["ratatui-backend"]
