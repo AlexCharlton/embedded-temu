@@ -1,8 +1,13 @@
 use embedded_graphics::{pixelcolor::Rgb666, prelude::*, primitives::Rectangle};
 use embedded_graphics_simulator::{OutputSettingsBuilder, SimulatorDisplay};
 use embedded_temu::{Console, EmbeddedTemuBackend, FlushableDisplay, Style};
-use ratatui::Terminal;
-use ratatui::widgets::Paragraph;
+use ratatui::{
+    Terminal,
+    layout::Alignment,
+    style::{Style as RatatuiStyle, Stylize},
+    text::{Line, Span},
+    widgets::{Block, Padding, Paragraph},
+};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -12,7 +17,14 @@ const DISPLAY_SIZE: Size = Size::new(800, 600);
 fn main() {
     env_logger::init();
 
-    let console = Console::new(80, 24, Style::default());
+    let console = Console::new(
+        88,
+        33,
+        Style {
+            offset: (3, 3),
+            ..Default::default()
+        },
+    );
     let simulator_display = Rc::new(RefCell::new(SimulatorDisplay::<Rgb666>::new(DISPLAY_SIZE)));
     let display = Display {
         display: simulator_display.clone(),
@@ -22,9 +34,22 @@ fn main() {
     let mut terminal = Terminal::new(backend).unwrap();
 
     // Draw to it
+    let text = vec![
+        Line::from(vec![
+            Span::raw("Hello, "),
+            Span::styled("Ratatui", RatatuiStyle::new().green().italic()),
+            "!".into(),
+        ]),
+        Line::from("I love you".red()),
+    ];
     terminal
         .draw(|f| {
-            f.render_widget(Paragraph::new("Hello, ratatui!"), f.area());
+            f.render_widget(
+                Paragraph::new(text)
+                    .block(Block::bordered().padding(Padding::uniform(5)))
+                    .alignment(Alignment::Center),
+                f.area(),
+            );
         })
         .unwrap();
 

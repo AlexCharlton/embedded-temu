@@ -21,6 +21,8 @@ pub struct Style<C> {
     pub font_bold: &'static MonoFont<'static>,
     /// A function to convert a [`Color`] to a value that can be converted to a given [`DrawTarget`]'s [`PixelColor`] (i.e. implements [`From`])
     pub color_to_pixel: fn(Color) -> C,
+    /// Pixel amount to offset all cells by
+    pub offset: (u32, u32),
 }
 
 impl<C> Style<C> {
@@ -64,8 +66,8 @@ where
     let text = Text::with_text_style(
         s,
         Point::new(
-            col as i32 * cell_style.font.character_size.width as i32,
-            row as i32 * cell_style.font.character_size.height as i32,
+            col as i32 * cell_style.font.character_size.width as i32 + cell_style.offset.0 as i32,
+            row as i32 * cell_style.font.character_size.height as i32 + cell_style.offset.1 as i32,
         ),
         style.build(),
         TextStyle::with_baseline(Baseline::Top),
@@ -83,6 +85,7 @@ impl Default for Style<Rgb888> {
             font: &FONT,
             font_bold: &FONT_BOLD,
             color_to_pixel: |color| color_to_rgb(color),
+            offset: (0, 0),
         }
     }
 }
