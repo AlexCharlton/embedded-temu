@@ -17,14 +17,15 @@ const DISPLAY_SIZE: Size = Size::new(800, 600);
 fn main() {
     env_logger::init();
 
-    let console = Console::new(
-        88,
-        33,
-        Style {
-            offset: (3, 3),
-            ..Default::default()
-        },
+    let mut cell_style = Style::default();
+    let cell_width = DISPLAY_SIZE.width / cell_style.font.character_size.width;
+    let cell_height = DISPLAY_SIZE.height / cell_style.font.character_size.height;
+    cell_style.offset = (
+        (DISPLAY_SIZE.width - (cell_width * cell_style.font.character_size.width)) / 2,
+        (DISPLAY_SIZE.height - (cell_height * cell_style.font.character_size.height)) / 2,
     );
+
+    let console = Console::new(cell_width as usize, cell_height as usize, cell_style);
     let simulator_display = Rc::new(RefCell::new(SimulatorDisplay::<Rgb666>::new(DISPLAY_SIZE)));
     let display = Display {
         display: simulator_display.clone(),

@@ -1,7 +1,7 @@
 use crate::Style;
 use crate::ansi::{Attr, ClearMode, Handler, LineClearMode, Mode, Performer};
 use crate::cell::{Cell, Flags};
-use crate::text_buffer::TextBuffer;
+use crate::cell_buffer::CellBuffer;
 
 use alloc::collections::VecDeque;
 use core::cmp::min;
@@ -38,7 +38,7 @@ struct ConsoleInner {
     /// current attribute template
     temp: Cell,
     /// character buffer
-    buf: TextBuffer,
+    buf: CellBuffer,
     /// auto wrap
     auto_wrap: bool,
     /// Reported data for CSI Device Status Report
@@ -55,7 +55,7 @@ impl<C> Console<C> {
                 cursor: Cursor::default(),
                 saved_cursor: Cursor::default(),
                 temp: Cell::default(),
-                buf: TextBuffer::new(width, height),
+                buf: CellBuffer::new(width, height),
                 auto_wrap: true,
                 report: VecDeque::new(),
             },

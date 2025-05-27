@@ -2,17 +2,17 @@ use crate::cell::Cell;
 use alloc::vec::Vec;
 
 /// A 2D array of `Cell` to render on screen
-pub struct TextBuffer {
+pub struct CellBuffer {
     pub buf: Vec<Vec<Cell>>,
     row_offset: usize,
     width: usize,
     height: usize,
 }
 
-impl TextBuffer {
+impl CellBuffer {
     /// Create a new text buffer
     pub fn new(width: usize, height: usize) -> Self {
-        TextBuffer {
+        CellBuffer {
             buf: vec![vec![Cell::default(); width]; height],
             row_offset: 0,
             width,

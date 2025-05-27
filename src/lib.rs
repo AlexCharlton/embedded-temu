@@ -22,10 +22,10 @@ pub use ratatui_backend::*;
 
 mod ansi;
 mod cell;
+mod cell_buffer;
 mod color;
 mod console;
 mod style;
-mod text_buffer;
 
 pub use color::{Color, NamedColor};
 pub use console::Console;
