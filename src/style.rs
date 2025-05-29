@@ -1,5 +1,6 @@
 use crate::cell::{Cell, Flags};
 use crate::color::{Color, NamedColor};
+use crate::text::MonoText;
 
 use embedded_graphics::mono_font::{
     MonoFont, MonoTextStyleBuilder,
@@ -11,75 +12,104 @@ use embedded_graphics::{
     text::{Baseline, Text, TextStyle},
 };
 
+/// A trait for types that can draw cells
+pub trait DrawCell<C> {
+    fn draw_cell<D, P: PixelColor + From<C>>(
+        &self,
+        cell: &Cell,
+        row: usize,
+        col: usize,
+        display: &mut D,
+    ) -> Result<(), <D as DrawTarget>::Error>
+    where
+        D: DrawTarget<Color = P>;
+}
+
 /// A style for drawing the [`Console`][crate::Console].
 ///
 /// This is used to configure the font and color mapping.
-pub struct Style<C> {
+pub struct Style<'a, C, F> {
     /// The base font to use for the cell.
-    pub font: &'static MonoFont<'static>,
+    pub font: &'a F,
     /// The bold font to use for the cell.
-    pub font_bold: &'static MonoFont<'static>,
+    pub font_bold: &'a F,
     /// A function to convert a [`Color`] to a value that can be converted to a given [`DrawTarget`]'s [`PixelColor`] (i.e. implements [`From`])
     pub color_to_pixel: fn(Color) -> C,
     /// Pixel amount to offset all cells by
     pub offset: (u32, u32),
 }
 
-impl<C> Style<C> {
+impl<'a, C, F> Style<'a, C, F> {
     fn color_to_pixel(&self, color: Color) -> C {
         (self.color_to_pixel)(color)
     }
 }
 
-// Draw a cell to a display using the provided style
-pub(crate) fn draw_cell<D, C, P: PixelColor + From<C>>(
-    cell: &Cell,
-    row: usize,
-    col: usize,
-    display: &mut D,
-    cell_style: &Style<C>,
-) -> Result<(), <D as DrawTarget>::Error>
-where
-    D: DrawTarget<Color = P>,
-{
-    let mut utf8_buf = [0u8; 8];
-    let s = cell.c.encode_utf8(&mut utf8_buf);
-    let (fg, bg) = if cell.flags.contains(Flags::INVERSE) {
-        (cell.bg, cell.fg)
-    } else {
-        (cell.fg, cell.bg)
-    };
-    let mut style = MonoTextStyleBuilder::new()
-        .text_color(P::from(cell_style.color_to_pixel(fg)))
-        .background_color(P::from(cell_style.color_to_pixel(bg)));
-    if cell.flags.contains(Flags::BOLD) {
-        style = style.font(cell_style.font_bold);
-    } else {
-        style = style.font(cell_style.font);
+impl<C> DrawCell<C> for Style<'static, C, MonoFont<'static>> {
+    fn draw_cell<D, P: PixelColor + From<C>>(
+        &self,
+        cell: &Cell,
+        row: usize,
+        col: usize,
+        display: &mut D,
+    ) -> Result<(), <D as DrawTarget>::Error>
+    where
+        D: DrawTarget<Color = P>,
+    {
+        let mut utf8_buf = [0u8; 8];
+        let s = cell.c.encode_utf8(&mut utf8_buf);
+        let (fg, bg) = if cell.flags.contains(Flags::INVERSE) {
+            (cell.bg, cell.fg)
+        } else {
+            (cell.fg, cell.bg)
+        };
+        let mut style = MonoTextStyleBuilder::new()
+            .text_color(P::from(self.color_to_pixel(fg)))
+            .background_color(P::from(self.color_to_pixel(bg)));
+        if cell.flags.contains(Flags::BOLD) {
+            style = style.font(self.font_bold);
+        } else {
+            style = style.font(self.font);
+        }
+        if cell.flags.contains(Flags::STRIKEOUT) {
+            style = style.strikethrough();
+        }
+        if cell.flags.contains(Flags::UNDERLINE) {
+            style = style.underline();
+        }
+        let text = Text::with_text_style(
+            s,
+            Point::new(
+                col as i32 * self.font.character_size.width as i32 + self.offset.0 as i32,
+                row as i32 * self.font.character_size.height as i32 + self.offset.1 as i32,
+            ),
+            style.build(),
+            TextStyle::with_baseline(Baseline::Top),
+        );
+        text.draw(display)?;
+        Ok(())
     }
-    if cell.flags.contains(Flags::STRIKEOUT) {
-        style = style.strikethrough();
+}
+
+impl<'a, C> DrawCell<C> for Style<'a, C, MonoText> {
+    fn draw_cell<D, P: PixelColor + From<C>>(
+        &self,
+        cell: &Cell,
+        row: usize,
+        col: usize,
+        display: &mut D,
+    ) -> Result<(), <D as DrawTarget>::Error>
+    where
+        D: DrawTarget<Color = P>,
+    {
+        todo!("Implement draw_cell for MonoText")
     }
-    if cell.flags.contains(Flags::UNDERLINE) {
-        style = style.underline();
-    }
-    let text = Text::with_text_style(
-        s,
-        Point::new(
-            col as i32 * cell_style.font.character_size.width as i32 + cell_style.offset.0 as i32,
-            row as i32 * cell_style.font.character_size.height as i32 + cell_style.offset.1 as i32,
-        ),
-        style.build(),
-        TextStyle::with_baseline(Baseline::Top),
-    );
-    text.draw(display)?;
-    Ok(())
 }
 
 //-----------------------------------------------------------
 // Default cell styling
 //-----------------------------------------------------------
-impl Default for Style<Rgb888> {
+impl Default for Style<'static, Rgb888, MonoFont<'static>> {
     fn default() -> Self {
         Self {
             font: &FONT,

@@ -2,6 +2,7 @@ use crate::Style;
 use crate::ansi::{Attr, ClearMode, Handler, LineClearMode, Mode, Performer};
 use crate::cell::{Cell, Flags};
 use crate::cell_buffer::CellBuffer;
+use crate::style::DrawCell;
 
 use alloc::collections::VecDeque;
 use core::cmp::min;
@@ -16,12 +17,12 @@ use vte::Parser;
 /// Write input strings with control sequences, draw to a [`DrawTarget`].
 ///
 /// Values that are written are encoded as a 2D array of cells, which are then used for drawing with the provided [`Style`].
-pub struct Console<C> {
+pub struct Console<'a, C, F> {
     // ANSI escape sequence parser
     parser: Parser,
     // Inner state
     inner: ConsoleInner,
-    cell_style: Style<C>,
+    cell_style: Style<'a, C, F>,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -45,9 +46,12 @@ struct ConsoleInner {
     report: VecDeque<u8>,
 }
 
-impl<C> Console<C> {
+impl<'a, C, F> Console<'a, C, F>
+where
+    Style<'a, C, F>: DrawCell<C>,
+{
     /// Create a new console with a given width and height in characters, and a [`Style`]
-    pub fn new(width: usize, height: usize, cell_style: Style<C>) -> Self {
+    pub fn new(width: usize, height: usize, cell_style: Style<'a, C, F>) -> Self {
         Console {
             parser: Parser::new(),
             cell_style,
@@ -88,11 +92,13 @@ impl<C> Console<C> {
         (self.inner.cursor.row, self.inner.cursor.col)
     }
 
+    #[cfg(feature = "ratatui-backend")]
     pub(crate) fn set_cursor_position(&mut self, row: usize, col: usize) {
         self.inner.goto(row, col);
         self.inner.temp = self.inner.buf.read(row, col);
     }
 
+    #[cfg(feature = "ratatui-backend")]
     pub(crate) fn set_cell(&mut self, row: usize, col: usize, cell: Cell) {
         self.inner.buf.write(row, col, cell);
     }
@@ -108,7 +114,7 @@ impl<C> Console<C> {
         for (row, row_cells) in self.inner.buf.buf.iter_mut().enumerate() {
             for (col, cell) in row_cells.iter_mut().enumerate() {
                 if cell.dirty {
-                    crate::style::draw_cell(cell, row, col, display, &self.cell_style)?;
+                    self.cell_style.draw_cell(cell, row, col, display)?;
                     cell.dirty = false;
                 }
             }
@@ -128,7 +134,10 @@ impl<C> Console<C> {
     }
 }
 
-impl<C> fmt::Write for Console<C> {
+impl<'a, C, F> fmt::Write for Console<'a, C, F>
+where
+    Style<'a, C, F>: DrawCell<C>,
+{
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for byte in s.bytes() {
             self.write_byte(byte);

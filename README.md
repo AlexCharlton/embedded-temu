@@ -19,6 +19,10 @@ cargo run --example basic
 cargo run --example replay -- examples/test-escapes.txt
 ```
 
+**3. ratatui**
+```
+cargo run --ratatui
+
 ## Optional features
 - `log`: Enable built-in logging
 - `ratatui-backend`: Allow this to be used as a Ratatui backend

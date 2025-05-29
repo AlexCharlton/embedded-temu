@@ -1,0 +1,228 @@
+use embedded_graphics::{
+    mono_font::mapping::{GlyphMapping, StrGlyphMapping},
+    prelude::*,
+    primitives::Rectangle,
+    text::{
+        Baseline, DecorationColor,
+        renderer::{CharacterStyle, TextMetrics, TextRenderer},
+    },
+};
+use fontdue::Font;
+
+use alloc::vec::Vec;
+
+/// An alternative to [`embedded_graphics::mono_font::MonoFont`] that uses [`fontdue`] to render text.
+pub struct MonoText {
+    rasterized: Vec<u8>,
+    character_size: Size,
+    glyph_mapping: StrGlyphMapping<'static>,
+    baseline: u32,
+    glyph_bytes: usize,
+}
+
+impl MonoText {
+    /// ASCII characters. TODO: Add more glyphs.
+    pub const DEFAULT_GLYPHS: &'static str = "\0\u{20}\u{7f}";
+
+    /// Create a new [`MonoText`] from the bytes of a font file and a scale (font size).
+    pub fn from_font_bytes(bytes: &[u8], scale: f32, glyphs: &'static str) -> Self {
+        let glyph_mapping = StrGlyphMapping::new(glyphs, '?' as usize - ' ' as usize);
+        let font = Font::from_bytes(
+            bytes,
+            fontdue::FontSettings {
+                scale,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let horizontal_line_metrics = font.horizontal_line_metrics(scale).unwrap();
+        let metrics = font.metrics(' ', scale);
+        let glyph_bytes = metrics.width * metrics.height;
+
+        // Rasterize all glyphs
+        let mut rasterized = Vec::with_capacity(glyph_bytes * glyphs.chars().count());
+        for c in glyphs.chars() {
+            let (_, bitmap) = font.rasterize(c, scale);
+            rasterized.extend_from_slice(&bitmap);
+        }
+
+        Self {
+            rasterized,
+            character_size: Size::new(metrics.width as u32, metrics.height as u32),
+            glyph_mapping,
+            baseline: horizontal_line_metrics.ascent as u32,
+            glyph_bytes,
+        }
+    }
+}
+
+#[derive(Clone)]
+/// A style for rendering text with a [`MonoText`].
+pub struct MonoStyle<'a, C: PixelColor> {
+    font: &'a MonoText,
+    text_color: Option<C>,
+    background_color: Option<C>,
+    underline_color: DecorationColor<C>,
+    strikethrough_color: DecorationColor<C>,
+}
+
+impl<'a, C: PixelColor> MonoStyle<'a, C> {
+    /// Create a new [`MonoStyle`] with a [`MonoText`] and a text color.
+    pub fn new(font: &'a MonoText, text_color: C) -> Self {
+        Self {
+            font,
+            text_color: Some(text_color),
+            background_color: None,
+            underline_color: DecorationColor::None,
+            strikethrough_color: DecorationColor::None,
+        }
+    }
+
+    /// Returns the vertical offset between the line position and the top edge of the bounding box.
+    fn baseline_offset(&self, baseline: Baseline) -> i32 {
+        match baseline {
+            Baseline::Top => 0,
+            Baseline::Bottom => self.font.character_size.height.saturating_sub(1) as i32,
+            Baseline::Middle => (self.font.character_size.height.saturating_sub(1) / 2) as i32,
+            Baseline::Alphabetic => self.font.baseline as i32,
+        }
+    }
+
+    fn draw_decorations<D>(
+        &self,
+        _width: u32,
+        _position: Point,
+        _target: &mut D,
+    ) -> Result<(), D::Error>
+    where
+        D: DrawTarget<Color = C>,
+    {
+        // if let Some(color) = self.strikethrough_color.to_color(self.text_color) {
+        //     let rect = self.font.strikethrough.to_rectangle(position, width);
+        //     target.fill_solid(&rect, color)?;
+        // }
+
+        // if let Some(color) = self.underline_color.to_color(self.text_color) {
+        //     let rect = self.font.underline.to_rectangle(position, width);
+        //     target.fill_solid(&rect, color)?;
+        // }
+
+        Ok(())
+    }
+}
+
+impl<C: PixelColor> TextRenderer for MonoStyle<'_, C> {
+    type Color = C;
+    fn draw_string<D>(
+        &self,
+        text: &str,
+        position: Point,
+        baseline: Baseline,
+        target: &mut D,
+    ) -> Result<Point, D::Error>
+    where
+        D: DrawTarget<Color = Self::Color>,
+    {
+        let mut next_position = position - Point::new(0, self.baseline_offset(baseline));
+
+        for c in text.chars() {
+            let glyph = self.font.glyph_mapping.index(c);
+            let bitmap = &self.font.rasterized
+                [glyph * self.font.glyph_bytes..(glyph + 1) * self.font.glyph_bytes];
+            target.draw_iter(
+                bitmap
+                    .chunks(self.font.character_size.width as usize)
+                    .enumerate()
+                    .flat_map(|(row, values)| {
+                        values.iter().enumerate().flat_map(move |(col, value)| {
+                            let pos = next_position + Point::new(col as i32, row as i32);
+                            // TODO: Handle intermediate colors
+                            if *value == 255 {
+                                self.text_color.map(|color| Pixel(pos, color))
+                            } else {
+                                self.background_color.map(|color| Pixel(pos, color))
+                            }
+                        })
+                    }),
+            )?;
+
+            next_position += Size::new(self.font.character_size.width, 0)
+        }
+
+        if next_position.x > position.x {
+            let width = (next_position.x - position.x) as u32;
+
+            self.draw_decorations(width, position, target)?;
+        }
+
+        Ok(next_position + Point::new(0, self.baseline_offset(baseline)))
+    }
+
+    fn draw_whitespace<D>(
+        &self,
+        width: u32,
+        position: Point,
+        baseline: Baseline,
+        target: &mut D,
+    ) -> Result<Point, D::Error>
+    where
+        D: DrawTarget<Color = Self::Color>,
+    {
+        let position = position - Point::new(0, self.baseline_offset(baseline));
+
+        if width != 0 {
+            if let Some(background_color) = self.background_color {
+                target.fill_solid(
+                    &Rectangle::new(position, Size::new(width, self.font.character_size.height)),
+                    background_color,
+                )?;
+            }
+            self.draw_decorations(width, position, target)?;
+        }
+
+        Ok(position + Point::new(width as i32, self.baseline_offset(baseline)))
+    }
+
+    fn measure_string(&self, text: &str, position: Point, baseline: Baseline) -> TextMetrics {
+        let bb_position = position - Point::new(0, self.baseline_offset(baseline));
+        let bb_width = text.chars().count() as u32 * (self.font.character_size.width);
+
+        let bb_height = if self.underline_color != DecorationColor::None {
+            // self.font.underline.height + self.font.underline.offset
+            0
+        } else {
+            self.font.character_size.height
+        };
+
+        let bb_size = Size::new(bb_width, bb_height);
+
+        TextMetrics {
+            bounding_box: Rectangle::new(bb_position, bb_size),
+            next_position: position + bb_size.x_axis(),
+        }
+    }
+
+    fn line_height(&self) -> u32 {
+        self.font.character_size.height
+    }
+}
+
+impl<C: Clone + PixelColor> CharacterStyle for MonoStyle<'_, C> {
+    type Color = C;
+
+    fn set_text_color(&mut self, color: Option<Self::Color>) {
+        self.text_color = color;
+    }
+
+    fn set_background_color(&mut self, color: Option<Self::Color>) {
+        self.background_color = color
+    }
+
+    fn set_underline_color(&mut self, color: DecorationColor<Self::Color>) {
+        self.underline_color = color;
+    }
+
+    fn set_strikethrough_color(&mut self, color: DecorationColor<Self::Color>) {
+        self.strikethrough_color = color;
+    }
+}

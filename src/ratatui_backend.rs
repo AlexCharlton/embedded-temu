@@ -8,18 +8,19 @@ use ratatui::style::{Color as RatatuiColor, Modifier as RatatuiModifier};
 use crate::ansi::{ClearMode, LineClearMode};
 use crate::cell::{Cell, Flags};
 use crate::color::{Color, NamedColor};
+use crate::style::{DrawCell, Style};
 
 /// A [`ratatui::backend::Backend`] implementation for the Embedded Temu
-pub struct EmbeddedTemuBackend<C, E, P, F: FlushableDisplay<E, P>> {
-    console: crate::Console<C>,
-    display: F,
+pub struct EmbeddedTemuBackend<'a, C, E, P, FD: FlushableDisplay<E, P>, F> {
+    console: crate::Console<'a, C, F>,
+    display: FD,
     _marker: core::marker::PhantomData<E>,
     _marker2: core::marker::PhantomData<P>,
 }
 
-impl<C, E, P, F: FlushableDisplay<E, P>> EmbeddedTemuBackend<C, E, P, F> {
+impl<'a, C, E, P, FD: FlushableDisplay<E, P>, F> EmbeddedTemuBackend<'a, C, E, P, FD, F> {
     /// Create a new [`EmbeddedTemuBackend`]
-    pub fn new(console: crate::Console<C>, display: F) -> Self {
+    pub fn new(console: crate::Console<'a, C, F>, display: FD) -> Self {
         Self {
             console,
             display,
@@ -53,17 +54,21 @@ impl<E: core::fmt::Display + core::fmt::Debug> core::fmt::Display for BackendErr
 impl<E: core::fmt::Display + core::fmt::Debug> core::error::Error for BackendError<E> {}
 
 impl<
+    'a,
     C,
     E: core::fmt::Display + core::fmt::Debug,
     P: PixelColor + From<C>,
-    F: FlushableDisplay<E, P>,
-> ratatui::backend::Backend for EmbeddedTemuBackend<C, E, P, F>
+    FD: FlushableDisplay<E, P>,
+    F,
+> ratatui::backend::Backend for EmbeddedTemuBackend<'a, C, E, P, FD, F>
+where
+    Style<'a, C, F>: DrawCell<C>,
 {
     type Error = BackendError<E>;
 
-    fn draw<'a, I>(&mut self, content: I) -> Result<(), Self::Error>
+    fn draw<'b, I>(&mut self, content: I) -> Result<(), Self::Error>
     where
-        I: Iterator<Item = (u16, u16, &'a RatatuiCell)>,
+        I: Iterator<Item = (u16, u16, &'b RatatuiCell)>,
     {
         trace!("Drawing to console");
         let rows = self.console.rows();
