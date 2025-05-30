@@ -7,7 +7,7 @@ use embedded_temu::{
 use ratatui::{
     Terminal,
     layout::Alignment,
-    style::{Style as RatatuiStyle, Stylize},
+    style::{Color, Style as RatatuiStyle, Stylize},
     text::{Line, Span},
     widgets::{Block, Padding, Paragraph},
 };
@@ -19,9 +19,34 @@ const DISPLAY_SIZE: Size = Size::new(800, 480);
 const FONT_BYTES: &[u8] = include_bytes!("./resources/SourceCodePro-Regular.ttf") as &[u8];
 const BOLD_FONT_BYTES: &[u8] = include_bytes!("./resources/SourceCodePro-Bold.ttf") as &[u8];
 
+fn select_style() -> (Color, Color) {
+    println!("Select a style:");
+    println!("1. White on Black");
+    println!("2. Black on White");
+    println!("3. White on Blue");
+    println!("4. Black on Blue");
+    println!("5. Blue on Black");
+    println!("6. Blue on White");
+    println!("7. Blue on Red");
+
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+
+    match input.trim().parse::<u8>().unwrap_or(1) {
+        2 => (Color::Black, Color::White),
+        3 => (Color::White, Color::Blue),
+        4 => (Color::Black, Color::Blue),
+        5 => (Color::Blue, Color::Black),
+        6 => (Color::Blue, Color::White),
+        7 => (Color::Blue, Color::Red),
+        _ => (Color::White, Color::Black), // Default
+    }
+}
+
 fn main() {
     env_logger::init();
 
+    let (fg, bg) = select_style();
     let font = Mono8BitFont::from_font_bytes(FONT_BYTES, 24.0, RATATUI_GLYPHS);
     let font_bold = Mono8BitFont::from_font_bytes(BOLD_FONT_BYTES, 24.0, RATATUI_GLYPHS);
     let mut cell_style = Style::new(&font, &font_bold, color_to_rgb);
@@ -55,7 +80,12 @@ fn main() {
         .draw(|f| {
             f.render_widget(
                 Paragraph::new(text)
-                    .block(Block::bordered().padding(Padding::uniform(5)))
+                    .block(
+                        Block::bordered()
+                            .border_set(ratatui::symbols::border::DOUBLE)
+                            .padding(Padding::uniform(5)),
+                    )
+                    .style(ratatui::style::Style::new().fg(fg).bg(bg))
                     .alignment(Alignment::Center),
                 f.area(),
             );

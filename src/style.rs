@@ -23,9 +23,9 @@ pub trait ColorInterpolate: PixelColor + Sized + Copy {
 
 impl ColorInterpolate for Rgb666 {
     fn interpolate(fg: Self, bg: Self, value: u8) -> Self {
-        let r = interpolate_color_values(fg.r(), bg.r(), value);
-        let g = interpolate_color_values(fg.g(), bg.g(), value);
-        let b = interpolate_color_values(fg.b(), bg.b(), value);
+        let r = interpolate_color_values(bg.r(), fg.r(), value);
+        let g = interpolate_color_values(bg.g(), fg.g(), value);
+        let b = interpolate_color_values(bg.b(), fg.b(), value);
         Self::new(r, g, b)
     }
 }
@@ -49,6 +49,7 @@ fn interpolate_color_values(a: u8, b: u8, value: u8) -> u8 {
     } else {
         a + ((b - a) * value + 127) / 255
     };
+    //let result = ((a * value + b * (255 - value)) / 255);
 
     result as u8
 }
