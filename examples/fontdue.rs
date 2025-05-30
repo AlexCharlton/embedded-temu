@@ -10,8 +10,8 @@ const FONT_BYTES: &[u8] = include_bytes!("./resources/RobotoMono-Regular.ttf") a
 
 fn main() {
     env_logger::init();
-    let font = Mono8BitFont::from_font_bytes(FONT_BYTES, 16.0, Mono8BitFont::DEFAULT_GLYPHS);
-    let font_bold = Mono8BitFont::from_font_bytes(FONT_BYTES, 16.0, Mono8BitFont::DEFAULT_GLYPHS);
+    let font = Mono8BitFont::from_font_bytes(FONT_BYTES, 16.0, Mono8BitFont::ASCII_GLYPHS);
+    let font_bold = Mono8BitFont::from_font_bytes(FONT_BYTES, 16.0, Mono8BitFont::ASCII_GLYPHS);
     let style = Style::new(&font, &font_bold, color_to_rgb);
 
     let mut console = Console::new(80, 24, style);

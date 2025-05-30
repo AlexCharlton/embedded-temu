@@ -24,15 +24,17 @@ pub struct Mono8BitFont {
 }
 
 impl Mono8BitFont {
-    /// ASCII characters. TODO: Add more glyphs.
-    pub const DEFAULT_GLYPHS: &'static str = "\0\u{20}\u{7f}";
+    /// All ASCII characters, for use with [`Mono8BitFont::from_font_bytes`].
+    pub const ASCII_GLYPHS: &'static str = "\0\u{20}\u{7f}";
 
     /// Get the size of the characters in the font.
     pub fn character_size(&self) -> Size {
         self.character_size
     }
 
-    /// Create a new [`Mono8BitFont`] from the bytes of a font file and a scale (font size).
+    /// Create a new [`Mono8BitFont`] from the bytes of a font file, a scale (font size), and the list of glyphs to include.
+    ///
+    /// The list of glyphs should be a string of characters that are present in the font file. Ranges can be represented by `"\0<character>-<character>"`, i.e. `"\0a-z"` will include all lowercase letters.
     pub fn from_font_bytes(bytes: &[u8], scale: f32, glyphs: &'static str) -> Self {
         let glyph_mapping = StrGlyphMapping::new(glyphs, '?' as usize - ' ' as usize);
         let font = Font::from_bytes(
