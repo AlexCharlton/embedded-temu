@@ -8,7 +8,7 @@ use ratatui::style::{Color as RatatuiColor, Modifier as RatatuiModifier};
 use crate::ansi::{ClearMode, LineClearMode};
 use crate::cell::{Cell, Flags};
 use crate::color::{Color, NamedColor};
-use crate::style::{DrawCell, Style};
+use crate::style::{ColorInterpolate, DrawCell, Style};
 
 /// A [`ratatui::backend::Backend`] implementation for the Embedded Temu
 pub struct EmbeddedTemuBackend<'a, C, E, P, FD: FlushableDisplay<E, P>, F> {
@@ -57,7 +57,7 @@ impl<
     'a,
     C,
     E: core::fmt::Display + core::fmt::Debug,
-    P: PixelColor + From<C>,
+    P: PixelColor + From<C> + ColorInterpolate,
     FD: FlushableDisplay<E, P>,
     F,
 > ratatui::backend::Backend for EmbeddedTemuBackend<'a, C, E, P, FD, F>

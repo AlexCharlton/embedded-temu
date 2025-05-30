@@ -12,7 +12,7 @@ use fontdue::Font;
 use alloc::vec::Vec;
 
 use crate::cell::{Cell, Flags};
-use crate::style::{DrawCell, Style};
+use crate::style::{ColorInterpolate, DrawCell, Style};
 
 /// An alternative to [`embedded_graphics::mono_font::MonoFont`] that uses [`fontdue`] to render text.
 pub struct MonoText {
@@ -104,19 +104,19 @@ impl MonoText {
 /// A style for rendering text with a [`MonoText`].
 pub struct MonoStyle<'a, C: PixelColor> {
     font: &'a MonoText,
-    text_color: Option<C>,
-    background_color: Option<C>,
+    text_color: C,
+    background_color: C,
     underline_color: DecorationColor<C>,
     strikethrough_color: DecorationColor<C>,
 }
 
 impl<'a, C: PixelColor> MonoStyle<'a, C> {
     /// Create a new [`MonoStyle`] with a [`MonoText`] and a text color.
-    pub fn new(font: &'a MonoText, text_color: C) -> Self {
+    pub fn new(font: &'a MonoText, text_color: C, background_color: C) -> Self {
         Self {
             font,
-            text_color: Some(text_color),
-            background_color: None,
+            text_color,
+            background_color,
             underline_color: DecorationColor::None,
             strikethrough_color: DecorationColor::None,
         }
@@ -155,8 +155,9 @@ impl<'a, C: PixelColor> MonoStyle<'a, C> {
     }
 }
 
-impl<C: PixelColor> TextRenderer for MonoStyle<'_, C> {
+impl<C: PixelColor + ColorInterpolate> TextRenderer for MonoStyle<'_, C> {
     type Color = C;
+
     fn draw_string<D>(
         &self,
         text: &str,
@@ -178,14 +179,11 @@ impl<C: PixelColor> TextRenderer for MonoStyle<'_, C> {
                     .chunks(self.font.character_size.width as usize)
                     .enumerate()
                     .flat_map(|(row, values)| {
-                        values.iter().enumerate().flat_map(move |(col, value)| {
+                        values.iter().enumerate().map(move |(col, value)| {
                             let pos = next_position + Point::new(col as i32, row as i32);
-                            // TODO: Handle intermediate colors
-                            if *value > 140 {
-                                self.text_color.map(|color| Pixel(pos, color))
-                            } else {
-                                self.background_color.map(|color| Pixel(pos, color))
-                            }
+                            let color =
+                                C::interpolate(self.text_color, self.background_color, *value);
+                            Pixel(pos, color)
                         })
                     }),
             )?;
@@ -215,12 +213,10 @@ impl<C: PixelColor> TextRenderer for MonoStyle<'_, C> {
         let position = position - Point::new(0, self.baseline_offset(baseline));
 
         if width != 0 {
-            if let Some(background_color) = self.background_color {
-                target.fill_solid(
-                    &Rectangle::new(position, Size::new(width, self.font.character_size.height)),
-                    background_color,
-                )?;
-            }
+            target.fill_solid(
+                &Rectangle::new(position, Size::new(width, self.font.character_size.height)),
+                self.background_color,
+            )?;
             self.draw_decorations(width, position, target)?;
         }
 
@@ -255,11 +251,15 @@ impl<C: Clone + PixelColor> CharacterStyle for MonoStyle<'_, C> {
     type Color = C;
 
     fn set_text_color(&mut self, color: Option<Self::Color>) {
-        self.text_color = color;
+        if let Some(color) = color {
+            self.text_color = color;
+        }
     }
 
     fn set_background_color(&mut self, color: Option<Self::Color>) {
-        self.background_color = color
+        if let Some(color) = color {
+            self.background_color = color;
+        }
     }
 
     fn set_underline_color(&mut self, color: DecorationColor<Self::Color>) {
@@ -272,7 +272,7 @@ impl<C: Clone + PixelColor> CharacterStyle for MonoStyle<'_, C> {
 }
 
 impl<'a, C> DrawCell<C> for Style<'a, C, MonoText> {
-    fn draw_cell<D, P: PixelColor + From<C>>(
+    fn draw_cell<D, P>(
         &self,
         cell: &Cell,
         row: usize,
@@ -281,6 +281,7 @@ impl<'a, C> DrawCell<C> for Style<'a, C, MonoText> {
     ) -> Result<(), <D as DrawTarget>::Error>
     where
         D: DrawTarget<Color = P>,
+        P: PixelColor + From<C> + ColorInterpolate,
     {
         let mut utf8_buf = [0u8; 8];
         let s = cell.c.encode_utf8(&mut utf8_buf);
@@ -294,8 +295,11 @@ impl<'a, C> DrawCell<C> for Style<'a, C, MonoText> {
         } else {
             self.font
         };
-        let mut style = MonoStyle::new(font, P::from(self.color_to_pixel(fg)));
-        style.set_background_color(Some(P::from(self.color_to_pixel(bg))));
+        let style = MonoStyle::new(
+            font,
+            P::from(self.color_to_pixel(fg)),
+            P::from(self.color_to_pixel(bg)),
+        );
         if cell.flags.contains(Flags::STRIKEOUT) {
             // TODO
         }

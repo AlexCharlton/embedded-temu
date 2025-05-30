@@ -2,7 +2,7 @@ use crate::Style;
 use crate::ansi::{Attr, ClearMode, Handler, LineClearMode, Mode, Performer};
 use crate::cell::{Cell, Flags};
 use crate::cell_buffer::CellBuffer;
-use crate::style::DrawCell;
+use crate::style::{ColorInterpolate, DrawCell};
 
 use alloc::collections::VecDeque;
 use core::cmp::min;
@@ -104,7 +104,7 @@ where
     }
 
     /// Draw the console to an embedded-graphics [`DrawTarget`]
-    pub fn draw<D, P: PixelColor + From<C>>(
+    pub fn draw<D, P: PixelColor + From<C> + ColorInterpolate>(
         &mut self,
         display: &mut D,
     ) -> Result<(), <D as DrawTarget>::Error>

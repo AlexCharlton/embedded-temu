@@ -32,4 +32,4 @@ mod style;
 
 pub use color::{Color, NamedColor};
 pub use console::Console;
-pub use style::{Style, color_to_rgb};
+pub use style::{ColorInterpolate, Style, color_to_rgb};

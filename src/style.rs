@@ -7,13 +7,48 @@ use embedded_graphics::mono_font::{
 };
 use embedded_graphics::prelude::*;
 use embedded_graphics::{
-    pixelcolor::Rgb888,
+    pixelcolor::{Rgb666, Rgb888},
     text::{Baseline, Text, TextStyle},
 };
 
+//-----------------------------------------------------------
+// MARK: Color interpolation
+//-----------------------------------------------------------
+
+/// A trait for [`PixelColor`] types to allow them to interpolate between two colors. This is only used for fontdue text rendering, but we're going to require it for all [`PixelColor`] types that are being drawn to a display since we require a DrawCell bound do be present.
+pub trait ColorInterpolate: PixelColor + Sized + Copy {
+    /// Interpolate between two colors by the amount specified in the value. 0 is fully background color, 255 is fully foreground color.
+    fn interpolate(fg: Self, bg: Self, value: u8) -> Self;
+}
+
+impl ColorInterpolate for Rgb666 {
+    fn interpolate(fg: Self, bg: Self, value: u8) -> Self {
+        let r = interpolate_color_values(fg.r(), bg.r(), value);
+        let g = interpolate_color_values(fg.g(), bg.g(), value);
+        let b = interpolate_color_values(fg.b(), bg.b(), value);
+        Self::new(r, g, b)
+    }
+}
+
+impl ColorInterpolate for Rgb888 {
+    fn interpolate(fg: Self, bg: Self, value: u8) -> Self {
+        let r = interpolate_color_values(fg.r(), bg.r(), value);
+        let g = interpolate_color_values(fg.g(), bg.g(), value);
+        let b = interpolate_color_values(fg.b(), bg.b(), value);
+        Self::new(r, g, b)
+    }
+}
+
+fn interpolate_color_values(a: u8, b: u8, value: u8) -> u8 {
+    let a = a as u16;
+    let b = b as u16;
+    let value = value as u16;
+    ((a * value + b * (255 - value)) / 255) as u8
+}
+
 /// A trait for types that can draw cells
 pub trait DrawCell<C> {
-    fn draw_cell<D, P: PixelColor + From<C>>(
+    fn draw_cell<D, P>(
         &self,
         cell: &Cell,
         row: usize,
@@ -21,7 +56,8 @@ pub trait DrawCell<C> {
         display: &mut D,
     ) -> Result<(), <D as DrawTarget>::Error>
     where
-        D: DrawTarget<Color = P>;
+        D: DrawTarget<Color = P>,
+        P: PixelColor + From<C> + ColorInterpolate;
 }
 
 /// A style for drawing the [`Console`][crate::Console].
