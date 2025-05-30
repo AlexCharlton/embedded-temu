@@ -3,13 +3,16 @@ use embedded_graphics::{
     prelude::*,
     primitives::Rectangle,
     text::{
-        Baseline, DecorationColor,
+        Baseline, DecorationColor, Text, TextStyle,
         renderer::{CharacterStyle, TextMetrics, TextRenderer},
     },
 };
 use fontdue::Font;
 
 use alloc::vec::Vec;
+
+use crate::cell::{Cell, Flags};
+use crate::style::{DrawCell, Style};
 
 /// An alternative to [`embedded_graphics::mono_font::MonoFont`] that uses [`fontdue`] to render text.
 pub struct MonoText {
@@ -37,20 +40,61 @@ impl MonoText {
         .unwrap();
         let horizontal_line_metrics = font.horizontal_line_metrics(scale).unwrap();
         let metrics = font.metrics(' ', scale);
-        let glyph_bytes = metrics.width * metrics.height;
+        let fixed_width = metrics.advance_width.ceil() as usize;
+        let fixed_height = horizontal_line_metrics.new_line_size.ceil() as usize;
+        let baseline = horizontal_line_metrics.ascent.round() as i32;
+        debug!(
+            "Creating font with line metrics: {:?}; ",
+            horizontal_line_metrics
+        );
+        let glyph_bytes = fixed_width * fixed_height;
 
         // Rasterize all glyphs
-        let mut rasterized = Vec::with_capacity(glyph_bytes * glyphs.chars().count());
-        for c in glyphs.chars() {
-            let (_, bitmap) = font.rasterize(c, scale);
-            rasterized.extend_from_slice(&bitmap);
+        let mut rasterized = Vec::with_capacity(glyph_bytes * glyph_mapping.chars().count());
+        for c in glyph_mapping.chars() {
+            let (metrics, bitmap) = font.rasterize(c, scale);
+
+            // Create a fixed-size buffer for this glyph, initialized to 0
+            let mut glyph_buffer = vec![0u8; glyph_bytes];
+
+            // Calculate the offset to center the raster in the fixed buffer
+            let x_offset = if metrics.xmin < 0 {
+                0 // If glyph starts before origin, align to left
+            } else {
+                metrics.xmin as usize // Otherwise use the recommended offset
+            };
+
+            let y_offset = baseline - metrics.ymin - metrics.height as i32;
+
+            // Copy the bitmap data into the correct position in the buffer
+            for y in 0..metrics.height {
+                for x in 0..metrics.width {
+                    let src_idx = y * metrics.width + x;
+                    let dst_x = x + x_offset;
+                    let dst_y = y + y_offset as usize;
+
+                    if dst_x < fixed_width && dst_y < fixed_height {
+                        let dst_idx = dst_y * fixed_width + dst_x;
+                        glyph_buffer[dst_idx] = bitmap[src_idx];
+                    }
+                }
+            }
+
+            trace!(
+                "rasterized glyph: {:?}; metrics: {:?}; bitmap size: {:?}",
+                c,
+                metrics,
+                bitmap.len()
+            );
+
+            rasterized.extend_from_slice(&glyph_buffer);
         }
 
         Self {
             rasterized,
-            character_size: Size::new(metrics.width as u32, metrics.height as u32),
+            character_size: Size::new(fixed_width as u32, fixed_height as u32),
             glyph_mapping,
-            baseline: horizontal_line_metrics.ascent as u32,
+            baseline: baseline as u32,
             glyph_bytes,
         }
     }
@@ -137,7 +181,7 @@ impl<C: PixelColor> TextRenderer for MonoStyle<'_, C> {
                         values.iter().enumerate().flat_map(move |(col, value)| {
                             let pos = next_position + Point::new(col as i32, row as i32);
                             // TODO: Handle intermediate colors
-                            if *value == 255 {
+                            if *value > 140 {
                                 self.text_color.map(|color| Pixel(pos, color))
                             } else {
                                 self.background_color.map(|color| Pixel(pos, color))
@@ -224,5 +268,50 @@ impl<C: Clone + PixelColor> CharacterStyle for MonoStyle<'_, C> {
 
     fn set_strikethrough_color(&mut self, color: DecorationColor<Self::Color>) {
         self.strikethrough_color = color;
+    }
+}
+
+impl<'a, C> DrawCell<C> for Style<'a, C, MonoText> {
+    fn draw_cell<D, P: PixelColor + From<C>>(
+        &self,
+        cell: &Cell,
+        row: usize,
+        col: usize,
+        display: &mut D,
+    ) -> Result<(), <D as DrawTarget>::Error>
+    where
+        D: DrawTarget<Color = P>,
+    {
+        let mut utf8_buf = [0u8; 8];
+        let s = cell.c.encode_utf8(&mut utf8_buf);
+        let (fg, bg) = if cell.flags.contains(Flags::INVERSE) {
+            (cell.bg, cell.fg)
+        } else {
+            (cell.fg, cell.bg)
+        };
+        let font = if cell.flags.contains(Flags::BOLD) {
+            self.font_bold
+        } else {
+            self.font
+        };
+        let mut style = MonoStyle::new(font, P::from(self.color_to_pixel(fg)));
+        style.set_background_color(Some(P::from(self.color_to_pixel(bg))));
+        if cell.flags.contains(Flags::STRIKEOUT) {
+            // TODO
+        }
+        if cell.flags.contains(Flags::UNDERLINE) {
+            // TODO
+        }
+        let text = Text::with_text_style(
+            s,
+            Point::new(
+                col as i32 * self.font.character_size.width as i32 + self.offset.0 as i32,
+                row as i32 * self.font.character_size.height as i32 + self.offset.1 as i32,
+            ),
+            style,
+            TextStyle::with_baseline(Baseline::Top),
+        );
+        text.draw(display)?;
+        Ok(())
     }
 }

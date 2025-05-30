@@ -18,15 +18,18 @@ mod ratatui_backend;
 #[cfg(feature = "ratatui-backend")]
 pub use ratatui_backend::*;
 
+#[cfg(feature = "fontdue")]
+mod text;
+#[cfg(feature = "fontdue")]
+pub use text::{MonoStyle, MonoText};
+
 mod ansi;
 mod cell;
 mod cell_buffer;
 mod color;
 mod console;
 mod style;
-mod text;
 
 pub use color::{Color, NamedColor};
 pub use console::Console;
-pub use style::Style;
-pub use text::{MonoStyle, MonoText};
+pub use style::{Style, color_to_rgb};

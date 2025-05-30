@@ -1,6 +1,5 @@
 use crate::cell::{Cell, Flags};
 use crate::color::{Color, NamedColor};
-use crate::text::MonoText;
 
 use embedded_graphics::mono_font::{
     MonoFont, MonoTextStyleBuilder,
@@ -40,7 +39,18 @@ pub struct Style<'a, C, F> {
 }
 
 impl<'a, C, F> Style<'a, C, F> {
-    fn color_to_pixel(&self, color: Color) -> C {
+    /// Create a new [`Style`].
+    pub fn new(font: &'a F, font_bold: &'a F, color_to_pixel: fn(Color) -> C) -> Self {
+        Self {
+            font,
+            font_bold,
+            color_to_pixel,
+            offset: (0, 0),
+        }
+    }
+
+    /// Call the `color_to_pixel` function.
+    pub fn color_to_pixel(&self, color: Color) -> C {
         (self.color_to_pixel)(color)
     }
 }
@@ -91,21 +101,6 @@ impl<C> DrawCell<C> for Style<'static, C, MonoFont<'static>> {
     }
 }
 
-impl<'a, C> DrawCell<C> for Style<'a, C, MonoText> {
-    fn draw_cell<D, P: PixelColor + From<C>>(
-        &self,
-        cell: &Cell,
-        row: usize,
-        col: usize,
-        display: &mut D,
-    ) -> Result<(), <D as DrawTarget>::Error>
-    where
-        D: DrawTarget<Color = P>,
-    {
-        todo!("Implement draw_cell for MonoText")
-    }
-}
-
 //-----------------------------------------------------------
 // Default cell styling
 //-----------------------------------------------------------
@@ -120,7 +115,10 @@ impl Default for Style<'static, Rgb888, MonoFont<'static>> {
     }
 }
 
-fn color_to_rgb(color: Color) -> Rgb888 {
+/// A default function to convert a [`Color`] to [`Rgb888`].
+///
+/// You can create your own styles with your own color mapping.
+pub fn color_to_rgb(color: Color) -> Rgb888 {
     match color {
         Color::RGB(rgb) => rgb,
         Color::Named(name) => COLOR_MAP[name as usize],
