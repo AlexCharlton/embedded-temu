@@ -10,6 +10,10 @@ use crate::cell::{Cell, Flags};
 use crate::color::{Color, NamedColor};
 use crate::style::{ColorInterpolate, DrawCell, Style};
 
+/// A set of glyphs to be used by [`MonoText`] that contains the border characters Ratatui uses.
+/// Includes ASCII characters and the [box drawing characters](https://en.wikipedia.org/wiki/Box-drawing_characters).
+pub const RATATUI_GLYPHS: &'static str = "\0\u{20}\u{7e}\0\u{2500}\u{257f}";
+
 /// A [`ratatui::backend::Backend`] implementation for the Embedded Temu
 pub struct EmbeddedTemuBackend<'a, C, E, P, FD: FlushableDisplay<E, P>, F> {
     console: crate::Console<'a, C, F>,

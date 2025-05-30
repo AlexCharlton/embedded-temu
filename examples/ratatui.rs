@@ -1,6 +1,8 @@
 use embedded_graphics::{pixelcolor::Rgb666, prelude::*, primitives::Rectangle};
 use embedded_graphics_simulator::{OutputSettingsBuilder, SimulatorDisplay};
-use embedded_temu::{Console, EmbeddedTemuBackend, FlushableDisplay, Style};
+use embedded_temu::{
+    Console, EmbeddedTemuBackend, FlushableDisplay, MonoText, RATATUI_GLYPHS, Style, color_to_rgb,
+};
 use ratatui::{
     Terminal,
     layout::Alignment,
@@ -12,17 +14,22 @@ use ratatui::{
 use std::cell::RefCell;
 use std::rc::Rc;
 
-const DISPLAY_SIZE: Size = Size::new(800, 600);
+const DISPLAY_SIZE: Size = Size::new(800, 480);
+const FONT_BYTES: &[u8] = include_bytes!("./resources/SourceCodePro-Regular.ttf") as &[u8];
+const BOLD_FONT_BYTES: &[u8] = include_bytes!("./resources/SourceCodePro-Bold.ttf") as &[u8];
 
 fn main() {
     env_logger::init();
 
-    let mut cell_style = Style::default();
-    let cell_width = DISPLAY_SIZE.width / cell_style.font.character_size.width;
-    let cell_height = DISPLAY_SIZE.height / cell_style.font.character_size.height;
+    let font = MonoText::from_font_bytes(FONT_BYTES, 24.0, RATATUI_GLYPHS);
+    let font_bold = MonoText::from_font_bytes(BOLD_FONT_BYTES, 24.0, RATATUI_GLYPHS);
+    let mut cell_style = Style::new(&font, &font_bold, color_to_rgb);
+
+    let cell_width = DISPLAY_SIZE.width / cell_style.font.character_size().width;
+    let cell_height = DISPLAY_SIZE.height / cell_style.font.character_size().height;
     cell_style.offset = (
-        (DISPLAY_SIZE.width - (cell_width * cell_style.font.character_size.width)) / 2,
-        (DISPLAY_SIZE.height - (cell_height * cell_style.font.character_size.height)) / 2,
+        (DISPLAY_SIZE.width - (cell_width * cell_style.font.character_size().width)) / 2,
+        (DISPLAY_SIZE.height - (cell_height * cell_style.font.character_size().height)) / 2,
     );
 
     let console = Console::new(cell_width as usize, cell_height as usize, cell_style);

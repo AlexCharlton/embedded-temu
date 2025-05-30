@@ -27,6 +27,11 @@ impl MonoText {
     /// ASCII characters. TODO: Add more glyphs.
     pub const DEFAULT_GLYPHS: &'static str = "\0\u{20}\u{7f}";
 
+    /// Get the size of the characters in the font.
+    pub fn character_size(&self) -> Size {
+        self.character_size
+    }
+
     /// Create a new [`MonoText`] from the bytes of a font file and a scale (font size).
     pub fn from_font_bytes(bytes: &[u8], scale: f32, glyphs: &'static str) -> Self {
         let glyph_mapping = StrGlyphMapping::new(glyphs, '?' as usize - ' ' as usize);
@@ -57,21 +62,26 @@ impl MonoText {
             // Create a fixed-size buffer for this glyph, initialized to 0
             let mut glyph_buffer = vec![0u8; glyph_bytes];
 
-            // Calculate the offset to center the raster in the fixed buffer
-            let x_offset = if metrics.xmin < 0 {
-                0 // If glyph starts before origin, align to left
+            // Calculate how many pixels to trim from source and where to start in destination
+            let (src_x_start, dst_x_start) = if metrics.xmin < 0 {
+                (-metrics.xmin as usize, 0) // Start reading source after clipped pixels, write at left edge
             } else {
-                metrics.xmin as usize // Otherwise use the recommended offset
+                (0, metrics.xmin as usize) // Read from start, offset in destination
             };
 
             let y_offset = baseline - metrics.ymin - metrics.height as i32;
+            let (src_y_start, dst_y_start) = if y_offset < 0 {
+                (-y_offset as usize, 0) // Start reading source after clipped pixels, write at top edge
+            } else {
+                (0, y_offset as usize) // Read from start, offset in destination
+            };
 
             // Copy the bitmap data into the correct position in the buffer
-            for y in 0..metrics.height {
-                for x in 0..metrics.width {
+            for y in src_y_start..metrics.height {
+                for x in src_x_start..metrics.width {
                     let src_idx = y * metrics.width + x;
-                    let dst_x = x + x_offset;
-                    let dst_y = y + y_offset as usize;
+                    let dst_x = (x - src_x_start) + dst_x_start;
+                    let dst_y = (y - src_y_start) + dst_y_start;
 
                     if dst_x < fixed_width && dst_y < fixed_height {
                         let dst_idx = dst_y * fixed_width + dst_x;
