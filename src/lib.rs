@@ -21,7 +21,7 @@ pub use ratatui_backend::*;
 #[cfg(feature = "fontdue")]
 mod text;
 #[cfg(feature = "fontdue")]
-pub use text::{MonoStyle, MonoText};
+pub use text::{Mono8BitFont, Mono8BitTextStyle};
 
 mod ansi;
 mod cell;

@@ -15,7 +15,7 @@ use crate::cell::{Cell, Flags};
 use crate::style::{ColorInterpolate, DrawCell, Style};
 
 /// An alternative to [`embedded_graphics::mono_font::MonoFont`] that uses [`fontdue`] to render text.
-pub struct MonoText {
+pub struct Mono8BitFont {
     rasterized: Vec<u8>,
     character_size: Size,
     glyph_mapping: StrGlyphMapping<'static>,
@@ -23,7 +23,7 @@ pub struct MonoText {
     glyph_bytes: usize,
 }
 
-impl MonoText {
+impl Mono8BitFont {
     /// ASCII characters. TODO: Add more glyphs.
     pub const DEFAULT_GLYPHS: &'static str = "\0\u{20}\u{7f}";
 
@@ -32,7 +32,7 @@ impl MonoText {
         self.character_size
     }
 
-    /// Create a new [`MonoText`] from the bytes of a font file and a scale (font size).
+    /// Create a new [`Mono8BitFont`] from the bytes of a font file and a scale (font size).
     pub fn from_font_bytes(bytes: &[u8], scale: f32, glyphs: &'static str) -> Self {
         let glyph_mapping = StrGlyphMapping::new(glyphs, '?' as usize - ' ' as usize);
         let font = Font::from_bytes(
@@ -111,18 +111,18 @@ impl MonoText {
 }
 
 #[derive(Clone)]
-/// A style for rendering text with a [`MonoText`].
-pub struct MonoStyle<'a, C: PixelColor> {
-    font: &'a MonoText,
+/// A style for rendering text with a [`Mono8BitFont`].
+pub struct Mono8BitTextStyle<'a, C: PixelColor> {
+    font: &'a Mono8BitFont,
     text_color: C,
     background_color: C,
     underline_color: DecorationColor<C>,
     strikethrough_color: DecorationColor<C>,
 }
 
-impl<'a, C: PixelColor> MonoStyle<'a, C> {
-    /// Create a new [`MonoStyle`] with a [`MonoText`] and a text color.
-    pub fn new(font: &'a MonoText, text_color: C, background_color: C) -> Self {
+impl<'a, C: PixelColor> Mono8BitTextStyle<'a, C> {
+    /// Create a new [`Mono8BitTextStyle`] with a [`Mono8BitFont`] and a text and background color.
+    pub fn new(font: &'a Mono8BitFont, text_color: C, background_color: C) -> Self {
         Self {
             font,
             text_color,
@@ -165,7 +165,7 @@ impl<'a, C: PixelColor> MonoStyle<'a, C> {
     }
 }
 
-impl<C: PixelColor + ColorInterpolate> TextRenderer for MonoStyle<'_, C> {
+impl<C: PixelColor + ColorInterpolate> TextRenderer for Mono8BitTextStyle<'_, C> {
     type Color = C;
 
     fn draw_string<D>(
@@ -257,7 +257,7 @@ impl<C: PixelColor + ColorInterpolate> TextRenderer for MonoStyle<'_, C> {
     }
 }
 
-impl<C: Clone + PixelColor> CharacterStyle for MonoStyle<'_, C> {
+impl<C: Clone + PixelColor> CharacterStyle for Mono8BitTextStyle<'_, C> {
     type Color = C;
 
     fn set_text_color(&mut self, color: Option<Self::Color>) {
@@ -281,7 +281,7 @@ impl<C: Clone + PixelColor> CharacterStyle for MonoStyle<'_, C> {
     }
 }
 
-impl<'a, C> DrawCell<C> for Style<'a, C, MonoText> {
+impl<'a, C> DrawCell<C> for Style<'a, C, Mono8BitFont> {
     fn draw_cell<D, P>(
         &self,
         cell: &Cell,
@@ -305,7 +305,7 @@ impl<'a, C> DrawCell<C> for Style<'a, C, MonoText> {
         } else {
             self.font
         };
-        let style = MonoStyle::new(
+        let style = Mono8BitTextStyle::new(
             font,
             P::from(self.color_to_pixel(fg)),
             P::from(self.color_to_pixel(bg)),
