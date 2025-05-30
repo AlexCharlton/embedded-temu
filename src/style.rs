@@ -32,9 +32,9 @@ impl ColorInterpolate for Rgb666 {
 
 impl ColorInterpolate for Rgb888 {
     fn interpolate(fg: Self, bg: Self, value: u8) -> Self {
-        let r = interpolate_color_values(fg.r(), bg.r(), value);
-        let g = interpolate_color_values(fg.g(), bg.g(), value);
-        let b = interpolate_color_values(fg.b(), bg.b(), value);
+        let r = interpolate_color_values(bg.r(), fg.r(), value);
+        let g = interpolate_color_values(bg.g(), fg.g(), value);
+        let b = interpolate_color_values(bg.b(), fg.b(), value);
         Self::new(r, g, b)
     }
 }
@@ -43,8 +43,81 @@ fn interpolate_color_values(a: u8, b: u8, value: u8) -> u8 {
     let a = a as u16;
     let b = b as u16;
     let value = value as u16;
-    ((a * value + b * (255 - value)) / 255) as u8
+
+    let result = if a > b {
+        a - ((a - b) * value + 127) / 255
+    } else {
+        a + ((b - a) * value + 127) / 255
+    };
+
+    result as u8
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_interpolate_color_values() {
+        // Edge cases
+        assert_eq!(interpolate_color_values(0, 0, 0), 0, "0% between 0 and 0");
+        assert_eq!(
+            interpolate_color_values(255, 255, 255),
+            255,
+            "100% between 255 and 255"
+        );
+        assert_eq!(
+            interpolate_color_values(0, 255, 0),
+            0,
+            "0% between bg:0 and fg:255"
+        );
+        assert_eq!(
+            interpolate_color_values(0, 255, 255),
+            255,
+            "100% between bg:0 and fg:255"
+        );
+
+        // 50% interpolation
+        assert_eq!(
+            interpolate_color_values(0, 255, 128),
+            128,
+            "50% between bg:0 and fg:255"
+        );
+        assert_eq!(
+            interpolate_color_values(255, 0, 128),
+            127,
+            "50% between bg:255 and fg:0"
+        );
+
+        // 25% and 75% interpolation
+        assert_eq!(
+            interpolate_color_values(0, 255, 64),
+            64,
+            "25% between bg:0 and fg:255"
+        );
+        assert_eq!(
+            interpolate_color_values(0, 255, 192),
+            192,
+            "75% between bg:0 and fg:255"
+        );
+
+        // Arbitrary values
+        assert_eq!(
+            interpolate_color_values(100, 200, 128),
+            150,
+            "50% between bg:100 and fg:200"
+        );
+        assert_eq!(
+            interpolate_color_values(50, 150, 128),
+            100,
+            "50% between bg:50 and fg:150"
+        );
+    }
+}
+
+//-----------------------------------------------------------
+// MARK: DrawCell trait
+//-----------------------------------------------------------
 
 /// A trait for types that can draw cells
 pub trait DrawCell<C> {
@@ -59,6 +132,10 @@ pub trait DrawCell<C> {
         D: DrawTarget<Color = P>,
         P: PixelColor + From<C> + ColorInterpolate;
 }
+
+//-----------------------------------------------------------
+// MARK: Style
+//-----------------------------------------------------------
 
 /// A style for drawing the [`Console`][crate::Console].
 ///
@@ -90,6 +167,10 @@ impl<'a, C, F> Style<'a, C, F> {
         (self.color_to_pixel)(color)
     }
 }
+
+//-----------------------------------------------------------
+// MARK: MonoFont DrawCell implementation
+//-----------------------------------------------------------
 
 impl<C> DrawCell<C> for Style<'static, C, MonoFont<'static>> {
     fn draw_cell<D, P: PixelColor + From<C>>(
@@ -138,7 +219,7 @@ impl<C> DrawCell<C> for Style<'static, C, MonoFont<'static>> {
 }
 
 //-----------------------------------------------------------
-// Default cell styling
+// MARK:Default cell styling
 //-----------------------------------------------------------
 impl Default for Style<'static, Rgb888, MonoFont<'static>> {
     fn default() -> Self {

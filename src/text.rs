@@ -191,8 +191,12 @@ impl<C: PixelColor + ColorInterpolate> TextRenderer for Mono8BitTextStyle<'_, C>
                     .flat_map(|(row, values)| {
                         values.iter().enumerate().map(move |(col, value)| {
                             let pos = next_position + Point::new(col as i32, row as i32);
-                            let color =
-                                C::interpolate(self.text_color, self.background_color, *value);
+                            let color = match value {
+                                0 => self.background_color,
+                                255 => self.text_color,
+                                _ => C::interpolate(self.text_color, self.background_color, *value),
+                            };
+
                             Pixel(pos, color)
                         })
                     }),
