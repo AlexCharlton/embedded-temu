@@ -9,6 +9,10 @@ use embedded_graphics::{
 };
 use fontdue::Font;
 
+// Used by environments without ceil/round functions
+#[allow(unused_imports)]
+use micromath::F32Ext;
+
 use alloc::vec::Vec;
 
 use crate::cell::{Cell, Flags};

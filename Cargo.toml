@@ -15,6 +15,7 @@ embedded-graphics = "0.8"
 fontdue = { version = "0.9", optional = true }
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 log = { version = "0.4", default-features = false, optional = true }
+micromath = "2.1"
 ratatui = { git = "https://github.com/j-g00da/ratatui.git", branch = "no_std/minimal", default-features = false, optional = true }
 vte = "0.10"
 
