@@ -23,23 +23,24 @@ pub trait ColorInterpolate: PixelColor + Sized + Copy {
 
 impl ColorInterpolate for Rgb666 {
     fn interpolate(fg: Self, bg: Self, value: u8) -> Self {
-        let r = interpolate_color_values(bg.r(), fg.r(), value);
-        let g = interpolate_color_values(bg.g(), fg.g(), value);
-        let b = interpolate_color_values(bg.b(), fg.b(), value);
+        let r = interpolate_8bit_values(bg.r(), fg.r(), value);
+        let g = interpolate_8bit_values(bg.g(), fg.g(), value);
+        let b = interpolate_8bit_values(bg.b(), fg.b(), value);
         Self::new(r, g, b)
     }
 }
 
 impl ColorInterpolate for Rgb888 {
     fn interpolate(fg: Self, bg: Self, value: u8) -> Self {
-        let r = interpolate_color_values(bg.r(), fg.r(), value);
-        let g = interpolate_color_values(bg.g(), fg.g(), value);
-        let b = interpolate_color_values(bg.b(), fg.b(), value);
+        let r = interpolate_8bit_values(bg.r(), fg.r(), value);
+        let g = interpolate_8bit_values(bg.g(), fg.g(), value);
+        let b = interpolate_8bit_values(bg.b(), fg.b(), value);
         Self::new(r, g, b)
     }
 }
 
-fn interpolate_color_values(a: u8, b: u8, value: u8) -> u8 {
+/// Interpolate between two 8-bit values by the amount specified in the value. 0 is fully background color, 255 is fully foreground color.
+pub fn interpolate_8bit_values(a: u8, b: u8, value: u8) -> u8 {
     let a = a as u16;
     let b = b as u16;
     let value = value as u16;
@@ -49,7 +50,6 @@ fn interpolate_color_values(a: u8, b: u8, value: u8) -> u8 {
     } else {
         a + ((b - a) * value + 127) / 255
     };
-    //let result = ((a * value + b * (255 - value)) / 255);
 
     result as u8
 }
@@ -61,55 +61,55 @@ mod tests {
     #[test]
     fn test_interpolate_color_values() {
         // Edge cases
-        assert_eq!(interpolate_color_values(0, 0, 0), 0, "0% between 0 and 0");
+        assert_eq!(interpolate_8bit_values(0, 0, 0), 0, "0% between 0 and 0");
         assert_eq!(
-            interpolate_color_values(255, 255, 255),
+            interpolate_8bit_values(255, 255, 255),
             255,
             "100% between 255 and 255"
         );
         assert_eq!(
-            interpolate_color_values(0, 255, 0),
+            interpolate_8bit_values(0, 255, 0),
             0,
             "0% between bg:0 and fg:255"
         );
         assert_eq!(
-            interpolate_color_values(0, 255, 255),
+            interpolate_8bit_values(0, 255, 255),
             255,
             "100% between bg:0 and fg:255"
         );
 
         // 50% interpolation
         assert_eq!(
-            interpolate_color_values(0, 255, 128),
+            interpolate_8bit_values(0, 255, 128),
             128,
             "50% between bg:0 and fg:255"
         );
         assert_eq!(
-            interpolate_color_values(255, 0, 128),
+            interpolate_8bit_values(255, 0, 128),
             127,
             "50% between bg:255 and fg:0"
         );
 
         // 25% and 75% interpolation
         assert_eq!(
-            interpolate_color_values(0, 255, 64),
+            interpolate_8bit_values(0, 255, 64),
             64,
             "25% between bg:0 and fg:255"
         );
         assert_eq!(
-            interpolate_color_values(0, 255, 192),
+            interpolate_8bit_values(0, 255, 192),
             192,
             "75% between bg:0 and fg:255"
         );
 
         // Arbitrary values
         assert_eq!(
-            interpolate_color_values(100, 200, 128),
+            interpolate_8bit_values(100, 200, 128),
             150,
             "50% between bg:100 and fg:200"
         );
         assert_eq!(
-            interpolate_color_values(50, 150, 128),
+            interpolate_8bit_values(50, 150, 128),
             100,
             "50% between bg:50 and fg:150"
         );

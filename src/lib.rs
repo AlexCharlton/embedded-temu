@@ -33,3 +33,8 @@ mod style;
 pub use color::{Color, NamedColor};
 pub use console::Console;
 pub use style::{ColorInterpolate, Style, color_to_rgb};
+
+/// Utility functions
+pub mod util {
+    pub use super::style::interpolate_8bit_values;
+}
