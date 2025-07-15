@@ -113,9 +113,9 @@ where
     {
         for (row, row_cells) in self.inner.buf.buf.iter_mut().enumerate() {
             for (col, cell) in row_cells.iter_mut().enumerate() {
-                if cell.dirty {
+                if cell.to_flush > 0 {
                     self.cell_style.draw_cell(cell, row, col, display)?;
-                    cell.dirty = false;
+                    cell.to_flush -= 1;
                 }
             }
         }

@@ -37,6 +37,11 @@ impl<'a, C, E, P, FD: FlushableDisplay<E, P>, F> EmbeddedTemuBackend<'a, C, E, P
 
 /// A trait for displays that can be flushed
 pub trait FlushableDisplay<E, C>: DrawTarget<Error = E, Color = C> {
+    /// Number of buffers used by the display.
+    ///
+    /// We need to flush each dirty cell this many times.
+    const NUM_BUFFERS: usize;
+
     /// Flush the display
     fn flush(&mut self) -> Result<(), E>;
 }
@@ -83,8 +88,11 @@ where
                 return Err(BackendError::CursorPositionOutOfBounds);
             }
             debug!("Setting cell: {:?}", cell);
-            self.console
-                .set_cell(y as usize, x as usize, ratatui_cell_to_cell(cell));
+            self.console.set_cell(
+                y as usize,
+                x as usize,
+                ratatui_cell_to_cell(cell, FD::NUM_BUFFERS),
+            );
             self.console.set_cursor_position(x as usize, y as usize);
         }
         Ok(())
@@ -164,14 +172,14 @@ where
 //--------------------------------
 // Ratatui conversions
 
-fn ratatui_cell_to_cell(cell: &RatatuiCell) -> Cell {
+fn ratatui_cell_to_cell(cell: &RatatuiCell, num_buffers: usize) -> Cell {
     Cell {
         // Maybe TODO; handle multi-character symbols
         c: cell.symbol().chars().next().unwrap(),
         fg: ratatui_color_to_color(&cell.fg, false),
         bg: ratatui_color_to_color(&cell.bg, true),
         flags: ratatui_modifier_to_flags(&cell.modifier),
-        dirty: true,
+        to_flush: num_buffers,
     }
 }
 

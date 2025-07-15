@@ -41,7 +41,8 @@ pub struct Cell {
     pub(crate) fg: Color,
     pub(crate) bg: Color,
     pub(crate) flags: Flags,
-    pub(crate) dirty: bool,
+    // Number of times we need to flush this cell
+    pub(crate) to_flush: usize,
 }
 
 impl Cell {
@@ -61,7 +62,7 @@ impl Default for Cell {
             bg: Color::Named(NamedColor::Black),
             fg: Color::Named(NamedColor::BrightWhite),
             flags: Flags::empty(),
-            dirty: true,
+            to_flush: 1,
         }
     }
 }

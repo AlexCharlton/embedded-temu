@@ -104,6 +104,8 @@ struct Display {
 }
 
 impl FlushableDisplay<<SimulatorDisplay<Rgb666> as DrawTarget>::Error, Rgb666> for Display {
+    const NUM_BUFFERS: usize = 2;
+
     fn flush(&mut self) -> Result<(), <SimulatorDisplay<Rgb666> as DrawTarget>::Error> {
         Ok(())
     }
