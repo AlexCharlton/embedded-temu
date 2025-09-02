@@ -2,7 +2,7 @@ use embedded_graphics::{pixelcolor::Rgb666, prelude::*, primitives::Rectangle};
 use embedded_graphics_simulator::{OutputSettingsBuilder, SimulatorDisplay};
 use embedded_temu::{
     Console, EmbeddedTemuBackend, FlushableDisplay, Mono8BitFont, RATATUI_GLYPHS, Style,
-    color_to_rgb,
+    color_to_rgb, dim_rgb,
 };
 use ratatui::{
     Terminal,
@@ -49,7 +49,7 @@ fn main() {
     let (fg, bg) = select_style();
     let font = Mono8BitFont::from_font_bytes(FONT_BYTES, 24.0, RATATUI_GLYPHS);
     let font_bold = Mono8BitFont::from_font_bytes(BOLD_FONT_BYTES, 24.0, RATATUI_GLYPHS);
-    let mut cell_style = Style::new(&font, &font_bold, color_to_rgb);
+    let mut cell_style = Style::new(&font, &font_bold, color_to_rgb, dim_rgb);
 
     let cell_width = DISPLAY_SIZE.width / cell_style.font.character_size().width;
     let cell_height = DISPLAY_SIZE.height / cell_style.font.character_size().height;
@@ -75,6 +75,7 @@ fn main() {
             "!".into(),
         ]),
         Line::from("I love you".red()),
+        Line::from("Shh!".dim().blue()),
     ];
     terminal
         .draw(|f| {

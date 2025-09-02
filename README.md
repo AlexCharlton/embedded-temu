@@ -21,14 +21,14 @@ cargo run --example replay -- examples/test-escapes.txt
 
 **3. ratatui**
 ```sh
-cargo run --ratatui
+cargo run --example ratatui --features ratatui-backend
 ```
 
 **4. fontdue**
 
 Adds TrueType and OpenType font rendering, via [fontdue](https://crates.io/crates/fontdue).
 ```sh
-cargo run --fontdue
+cargo run --example fontdue
 ```
 
 ## Optional features

@@ -148,17 +148,25 @@ pub struct Style<'a, C, F> {
     pub font_bold: &'a F,
     /// A function to convert a [`Color`] to a value that can be converted to a given [`DrawTarget`]'s [`PixelColor`] (i.e. implements [`From`])
     pub color_to_pixel: fn(Color) -> C,
+    /// A function to dim a color
+    pub dim_color: fn(C) -> C,
     /// Pixel amount to offset all cells by
     pub offset: (u32, u32),
 }
 
 impl<'a, C, F> Style<'a, C, F> {
     /// Create a new [`Style`].
-    pub fn new(font: &'a F, font_bold: &'a F, color_to_pixel: fn(Color) -> C) -> Self {
+    pub fn new(
+        font: &'a F,
+        font_bold: &'a F,
+        color_to_pixel: fn(Color) -> C,
+        dim_color: fn(C) -> C,
+    ) -> Self {
         Self {
             font,
             font_bold,
             color_to_pixel,
+            dim_color,
             offset: (0, 0),
         }
     }
@@ -166,6 +174,11 @@ impl<'a, C, F> Style<'a, C, F> {
     /// Call the `color_to_pixel` function.
     pub fn color_to_pixel(&self, color: Color) -> C {
         (self.color_to_pixel)(color)
+    }
+
+    /// Call the `dim_color` function.
+    pub fn dim_color(&self, color: C) -> C {
+        (self.dim_color)(color)
     }
 }
 
@@ -184,6 +197,7 @@ impl<C> DrawCell<C> for Style<'static, C, MonoFont<'static>> {
     where
         D: DrawTarget<Color = P>,
     {
+        info!("Drawing cell: {:?}", cell);
         let mut utf8_buf = [0u8; 8];
         let s = cell.c.encode_utf8(&mut utf8_buf);
         let (fg, bg) = if cell.flags.contains(Flags::INVERSE) {
@@ -191,9 +205,15 @@ impl<C> DrawCell<C> for Style<'static, C, MonoFont<'static>> {
         } else {
             (cell.fg, cell.bg)
         };
+        let mut fg = self.color_to_pixel(fg);
+        let mut bg = self.color_to_pixel(bg);
+        if cell.flags.contains(Flags::DIM) {
+            fg = self.dim_color(fg);
+            bg = self.dim_color(bg);
+        }
         let mut style = MonoTextStyleBuilder::new()
-            .text_color(P::from(self.color_to_pixel(fg)))
-            .background_color(P::from(self.color_to_pixel(bg)));
+            .text_color(P::from(fg))
+            .background_color(P::from(bg));
         if cell.flags.contains(Flags::BOLD) {
             style = style.font(self.font_bold);
         } else {
@@ -228,9 +248,16 @@ impl Default for Style<'static, Rgb888, MonoFont<'static>> {
             font: &FONT,
             font_bold: &FONT_BOLD,
             color_to_pixel: |color| color_to_rgb(color),
+            dim_color: |color| dim_rgb(color),
             offset: (0, 0),
         }
     }
+}
+
+/// A default function to dim a [`Rgb888`].
+pub fn dim_rgb(color: Rgb888) -> Rgb888 {
+    let factor = 3;
+    Rgb888::new(color.r() / factor, color.g() / factor, color.b() / factor)
 }
 
 /// A default function to convert a [`Color`] to [`Rgb888`].

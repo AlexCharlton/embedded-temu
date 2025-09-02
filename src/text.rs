@@ -305,21 +305,24 @@ impl<'a, C> DrawCell<C> for Style<'a, C, Mono8BitFont> {
     {
         let mut utf8_buf = [0u8; 8];
         let s = cell.c.encode_utf8(&mut utf8_buf);
+
         let (fg, bg) = if cell.flags.contains(Flags::INVERSE) {
             (cell.bg, cell.fg)
         } else {
             (cell.fg, cell.bg)
         };
+        let mut fg = self.color_to_pixel(fg);
+        let mut bg = self.color_to_pixel(bg);
+        if cell.flags.contains(Flags::DIM) {
+            fg = self.dim_color(fg);
+            bg = self.dim_color(bg);
+        }
         let font = if cell.flags.contains(Flags::BOLD) {
             self.font_bold
         } else {
             self.font
         };
-        let style = Mono8BitTextStyle::new(
-            font,
-            P::from(self.color_to_pixel(fg)),
-            P::from(self.color_to_pixel(bg)),
-        );
+        let style = Mono8BitTextStyle::new(font, P::from(fg), P::from(bg));
         if cell.flags.contains(Flags::STRIKEOUT) {
             // TODO
         }

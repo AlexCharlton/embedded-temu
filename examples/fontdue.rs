@@ -1,6 +1,6 @@
 use embedded_graphics::{pixelcolor::Rgb666, prelude::*};
 use embedded_graphics_simulator::{OutputSettingsBuilder, SimulatorDisplay};
-use embedded_temu::{Console, Mono8BitFont, Style, color_to_rgb};
+use embedded_temu::{Console, Mono8BitFont, Style, color_to_rgb, dim_rgb};
 use std::time::Instant;
 
 use std::fmt::Write;
@@ -12,7 +12,7 @@ fn main() {
     env_logger::init();
     let font = Mono8BitFont::from_font_bytes(FONT_BYTES, 16.0, Mono8BitFont::ASCII_GLYPHS);
     let font_bold = Mono8BitFont::from_font_bytes(FONT_BYTES, 16.0, Mono8BitFont::ASCII_GLYPHS);
-    let style = Style::new(&font, &font_bold, color_to_rgb);
+    let style = Style::new(&font, &font_bold, color_to_rgb, dim_rgb);
 
     let mut console = Console::new(80, 24, style);
     console.write_str("Hello, world!").unwrap();
